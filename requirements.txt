@@ -1,0 +1,7 @@
+langgraph
+langchain-core
+elasticsearch
+redis
+fastapi
+uvicorn
+pydantic

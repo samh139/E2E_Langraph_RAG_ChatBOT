@@ -1,0 +1,157 @@
+services:
+
+  # -----------------------------------------------------------------
+  # 1. CORE APPLICATION WORKER (Your Python/LangGraph/Kafka Code)
+  # -----------------------------------------------------------------
+  app-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chatbot_worker
+    depends_on:
+      kafka:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./app/configs/.env
+    volumes:
+      - ./:/workspace
+    ports:
+      - "8000:8000"
+
+  # -----------------------------------------------------------------
+  # 2. VECTOR DATABASE ENGINE
+  # -----------------------------------------------------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: es
+    env_file:
+      - ./app/configs/.env
+    environment:
+      - node.name=es01
+      - cluster.name=${ES_CLUSTER_NAME:-docsprawl-es}
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms${ES_HEAP:-4g} -Xmx${ES_HEAP:-4g}
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sSf http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # -----------------------------------------------------------------
+  # 3. STREAMING & EVENT BACKBONE
+  # -----------------------------------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.9.10
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.9.10
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+  
+  # -----------------------------------------------------------------
+  # 4. RAW FILE/OBJECT STORAGE TIER
+  # -----------------------------------------------------------------
+  minio:
+    image: alpine/minio:RELEASE.2025-10-15T17-29-55Z
+    container_name: minio
+    env_file:
+      - ./app/configs/.env
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9010:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  minio-console:
+    image: alpine/minio:RELEASE.2025-10-15T17-29-55Z
+    container_name: minio_mc
+    depends_on:
+      - minio
+    entrypoint: ["sh", "-c", "until nc -z minio 9000; do sleep 1; done; mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; mc mb --ignore-existing local/${MINIO_BUCKET} || true; tail -f /dev/null"]
+    volumes:
+      - ./app/configs:/config
+
+  # -----------------------------------------------------------------
+  # 5. STATE STATEFUL CHECKPOINT MEMORY
+  # -----------------------------------------------------------------
+  redis:
+    image: redis:7.4.11-alpine
+    container_name: redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redisinsight:
+    image: redis/redisinsight:2.64.0
+    container_name: redisinsight
+    ports:
+      - "8001:8001"
+    depends_on:
+      - redis
+
+  # -----------------------------------------------------------------
+  # 6. METADATA APPLICATION LOG ENGINE
+  # -----------------------------------------------------------------
+  mongo:
+    image: mongo:8.0.26
+    container_name: mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongodata:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'db.runCommand({ping:1})' | mongosh localhost:27017/test --quiet || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  esdata:
+  miniodata:
+  mongodata:
