@@ -5,3 +5,7 @@ redis
 fastapi
 uvicorn
 pydantic
+confluent-kafka
+minio
+pypdf
+python-dotenv
