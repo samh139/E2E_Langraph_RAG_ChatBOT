@@ -5,8 +5,6 @@ import uuid
 from datetime import datetime
 from kafka import KafkaProducer
 from pathlib import Path
-from app.core.utils.file_utils import read_text_file, extract_text_from_docx, extract_text_from_pdf
-from app.ingestion.chunkers.splitters import get_splitters
 from dotenv import load_dotenv
 import hashlib
 

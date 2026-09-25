@@ -4,37 +4,37 @@ import json
 import uuid
 import hashlib
 import time
+import asyncio
 from pathlib import Path
 from datetime import datetime, timezone
-from confluent_kafka import Producer, Consumer, KafkaError
+from confluent_kafka import Producer
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
 
 from app.ingestion.minio_client import MinioStorageClient
-from app.ingestion.chunking_engine import ChunkingEngine
-from app.workflow.ingestion_workflow import IngestionWorkflow
+from app.workflow.ingestion_workflow import IngestionWorkflow as IngestionLangGraph
 from app.workflow.state import IngestionState
+from workers.embed_worker import EmbedWorker
+from workers.indexer_worker import IndexerWorker
 
 class IngestionService:
     def __init__(self):
         self.storage = MinioStorageClient()
-        self.chunker = ChunkingEngine(max_chars=2000, overlap=200)
-        
         self.kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9094")
+        
         self.producer_config = {
             'bootstrap.servers': self.kafka_bootstrap,
             'acks': 'all',
-            'linger.ms': 5
+            'linger.ms': 5,
+            'max.in.flight.requests.per.connection': 1
         }
         self.producer = Producer(self.producer_config)
-        
         self.chunks_topic = "dsprawl.chunks"
-        self.embedded_topic = "dsprawl.embedded_chunks"
 
-    def bulk_ingest(self, target_folder_path: str) -> int:
+    async def bulk_ingest(self, target_folder_path: str) -> int:
         print("\n=====================================================================")
-        print(f"🚀 [PHASE 1] Starting Bulk Ingest Scanner for folder: {target_folder_path}")
+        print(f"🚀 [PHASE 1] Starting Bulk Ingest Scanner & LangGraph Extraction")
         print("=====================================================================")
         
         dir_path = Path(target_folder_path)
@@ -46,12 +46,10 @@ class IngestionService:
         files = [f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in supported_exts]
         
         if not files:
-            print("[*] No compatible files found in the folder.")
+            print("[*] No target documents found.")
             return 0
 
-        print(f"[*] Found {len(files)} target documents. Launching workflow pipelines...")
-        workflow_app = IngestionWorkflow()
-        compiled_workflow = workflow_app.compile()
+        print(f"[*] Found {len(files)} items. Running LangGraph workflow pipeline...")
 
         for file_path in files:
             run_id = str(uuid.uuid4())
@@ -61,38 +59,47 @@ class IngestionService:
                 minio_key = f"raw_vault/{run_id}_{file_path.name}"
                 self.storage.upload_document(str(file_path), minio_key)
                 
+                local_worker_path = f"/tmp/rag_ingest/{run_id}_{file_path.name}"
+                os.makedirs(os.path.dirname(local_worker_path), exist_ok=True)
+                self.storage.client.fget_object(self.storage.bucket_name, minio_key, local_worker_path)
+
                 state_input = IngestionState(
                     run_id=run_id,
-                    file_path=str(file_path),
+                    file_path=local_worker_path,
                     file_name=file_path.name,
                     file_extension=file_path.suffix.lower(),
                     mime_type=f"application/{file_path.suffix.lower()[1:]}",
                     file_type=file_path.suffix.lower()[1:],
-                    status="pending"
+                    status="pending",
+                    stage_timings_ms={},
+                    extracted_text=""
                 )
 
-                print(f"[*] Triggering workflow for file type validation...")
-                final_state = compiled_workflow.invoke(state_input)
+                print(f"[*] Dispatching to LangGraph workflow architecture...")
+                final_state = await IngestionLangGraph.ainvoke(state_input)
                 
-                if final_state.get("error"):
-                    print(f"[X] Workflow halted with errors: {final_state['error']}")
+                if hasattr(final_state, 'error') and getattr(final_state, 'error'):
+                    print(f"[X] Workflow failed on file {file_path.name}: {getattr(final_state, 'error')}")
                     continue
 
-                elements = final_state.get("extraction_metadata", {}).get("elements", [])
-                print(f"[*] Workflow extraction successful. Splitting elements into chunks...")
-                processed_chunks = self.chunker.chunk(elements, file_name=file_path.name)
-
-                print(f"[✓] Streaming {len(processed_chunks)} text segments into topic: {self.chunks_topic}")
-                for idx, item in enumerate(processed_chunks):
+                # The LangGraph workflow automatically maps text items to ChunkingAgent internally.
+                # It appends structured document fragments into your state object attributes.
+                chunks = getattr(final_state, "chunks", [])
+                print(f"[✓] Graph extraction and chunking complete. Pushing to Kafka topic: {self.chunks_topic}")
+                
+                for idx, chunk_item in enumerate(chunks):
+                    # Adapts to LangGraph Chunk output model keys dynamically
+                    content_str = chunk_item.get("content", chunk_item.get("text_content", ""))
+                    
                     chunk_payload = {
                         "doc_id": run_id,
                         "file_name": file_path.name,
-                        "chunk_id": item.get("id", f"{run_id}_c{idx}"),
-                        "content": item.get("content"),
-                        "content_hash": hashlib.sha1(item.get("content", "").strip().encode("utf-8")).hexdigest(),
-                        "pages": item.get("pages", []),
-                        "heading": item.get("heading"),
-                        "subheading": item.get("subheading"),
+                        "chunk_id": chunk_item.get("id", chunk_item.get("chunk_id", f"{run_id}_c{idx}")),
+                        "content": content_str,
+                        "content_hash": hashlib.sha1(content_str.strip().encode("utf-8")).hexdigest(),
+                        "pages": chunk_item.get("pages", chunk_item.get("page", [])),
+                        "heading": chunk_item.get("heading"),
+                        "subheading": chunk_item.get("subheading"),
                         "created_at": datetime.now(timezone.utc).isoformat(),
                     }
                     self.producer.produce(
@@ -102,120 +109,59 @@ class IngestionService:
                     )
                 
                 self.producer.flush()
-                print(f"[✓] Completed streaming phase for: {file_path.name}")
+                
+                if os.path.exists(local_worker_path):
+                    os.remove(local_worker_path)
+
+                print(f"[✓] Document ingestion complete for: {file_path.name}")
 
             except Exception as e:
-                print(f"[X] Failed processing target file metadata loop {file_path.name}: {e}")
+                print(f"[X] Critical pipeline issue on asset {file_path.name}: {e}")
 
         return len(files)
 
-    def run_embedding_worker(self):
+    def run_embedding_phase(self):
         print("\n=====================================================================")
-        print(f"🧠 [PHASE 2] Initializing Local Embedding Transformation Pipeline")
+        print(f"🧠 [PHASE 2] Handing Execution Over to EmbedWorker Module")
         print("=====================================================================")
-        
-        consumer = Consumer({
-            'bootstrap.servers': self.kafka_bootstrap,
-            'group.id': 'embedding-worker-group',
-            'auto.offset.reset': 'earliest',
-            'enable.auto.commit': False
-        })
-        consumer.subscribe([self.chunks_topic])
-        
-        print("[*] Consumer linked to stream. Executing message payload generation...")
-        
-        timeout_counter = 0
-        while timeout_counter < 5:
-            msg = consumer.poll(timeout=1.0)
-            if msg is None:
-                timeout_counter += 1
-                continue
-            
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
-                    continue
-                print(f"[X] Kafka record processing breach error: {msg.error()}")
-                break
+        # Instantiates and executes your actual class component code file logic cleanly
+        embed_worker = EmbedWorker()
+        embed_worker.start() if hasattr(embed_worker, 'start') else embed_worker.run()
 
-            timeout_counter = 0
-            payload = json.loads(msg.value().decode('utf-8'))
-            
-            mock_vector = [0.01536] * 1536 
-            payload["vector_embedding"] = mock_vector
-            payload["embedding_model"] = "bge-large-en-v1.5"
-            
-            self.producer.produce(
-                topic=self.embedded_topic,
-                key=payload["chunk_id"].encode('utf-8'),
-                value=json.dumps(payload).encode('utf-8')
-            )
-            consumer.commit(msg, asynchronous=False)
-            print(f"[✓] Layer Embedded -> Chunk ID: {payload['chunk_id'][:12]}...")
-
-        self.producer.flush()
-        consumer.close()
-        print("[✓] Embedding lifecycle phase closed successfully.")
-
-    def run_indexing_worker(self):
+    def run_indexing_phase(self):
         print("\n=====================================================================")
-        print(f"🔍 [PHASE 3] Executing Database Vector Indexing Pipeline")
+        print(f"🔍 [PHASE 3] Handing Execution Over to IndexerWorker Module")
         print("=====================================================================")
-        
-        consumer = Consumer({
-            'bootstrap.servers': self.kafka_bootstrap,
-            'group.id': 'indexer-worker-group',
-            'auto.offset.reset': 'earliest',
-            'enable.auto.commit': False
-        })
-        consumer.subscribe([self.embedded_topic])
+        # Instantiates and executes your actual class component code file logic cleanly
+        indexer_worker = IndexerWorker()
+        indexer_worker.start() if hasattr(indexer_worker, 'start') else indexer_worker.run()
 
-        indexed_count = 0
-        timeout_counter = 0
-        
-        while timeout_counter < 5:
-            msg = consumer.poll(timeout=1.0)
-            if msg is None:
-                timeout_counter += 1
-                continue
-                
-            timeout_counter = 0
-            payload = json.loads(msg.value().decode('utf-8'))
-            
-            indexed_count += 1
-            consumer.commit(msg, asynchronous=False)
-            print(f"[✓] Indexed Document in DB -> ID: {payload['chunk_id'][:12]} | File: {payload['file_name']}")
+    # def run_clustering_service(self):
+    #     print("\n=====================================================================")
+    #     print(f"📊 [PHASE 4] Executing Out-Of-Band Topic Clustering Service")
+    #     print("=====================================================================")
+    #     print("[*] Performing spatial clustering computation maps against index endpoints...")
+    #     time.sleep(1.0)
+    #     print("[SUCCESS] Spatial topology calculated. Clustering state sync complete.")
 
-        consumer.close()
-        print(f"[✓] Indexing Complete. Successfully pushed {indexed_count} items to Elasticsearch.")
-
-    def run_clustering_service(self):
-        print("\n=====================================================================")
-        print(f"📊 [PHASE 4] Executing Out-Of-Band Topic Clustering Service")
-        print("=====================================================================")
-        print("[*] Contacting Vector Database Engine at http://localhost:9200...")
-        print("[*] Retrieving document matrices for multi-dimensional mathematical analysis...")
-        time.sleep(1.5) 
-        print("[✓] Computations converged. Spatial boundaries determined for data pools.")
-        print("[SUCCESS] Global clustering assignments stored back to MongoDB registry tier.")
-
-    def execute_complete_pipeline(self, folder_path: str):
-        start_time = time.time()
+    async def execute_complete_pipeline(self, folder_path: str):
+        start_time = time.perf_counter()
         print("=====================================================================")
         print(f"✨ UNIFIED INGESTION ENGINE LIFECYCLE INITIALIZED AT: {time.strftime('%X')}")
         print("=====================================================================")
         
-        total_files = self.bulk_ingest(folder_path)
+        total_files = await self.bulk_ingest(folder_path)
         if total_files == 0:
-            print("[X] Ingestion pipeline aborted: No files were processed.")
+            print("[X] Ingestion lifecycle aborted: Processing folder source path is empty.")
             return
 
-        self.run_embedding_worker()
-        self.run_indexing_worker()
-        self.run_clustering_service()
+        self.run_embedding_phase()
+        self.run_indexing_phase()
+        # self.run_clustering_service()
 
-        duration = time.time() - start_time
+        duration = time.perf_counter() - start_time
         print("\n=====================================================================")
-        print(f"🏆 SUCCESS: END-TO-END INGESTION RUN COMPLETE! Total Time: {duration:.2f}s")
+        print(f"🏆 SUCCESS: END-TO-END BATCH LIFECYCLE COMPLETE! Total Time: {duration:.3f}s")
         print("=====================================================================")
 
 if __name__ == "__main__":
@@ -223,5 +169,6 @@ if __name__ == "__main__":
     load_dotenv("app/configs/.env")
     
     service = IngestionService()
-    TARGET_DATA_DIR = "./data_staging" 
-    service.execute_complete_pipeline(TARGET_DATA_DIR)
+    TARGET_DATA_DIR = "./data_staging"
+    
+    asyncio.run(service.execute_complete_pipeline(TARGET_DATA_DIR))
