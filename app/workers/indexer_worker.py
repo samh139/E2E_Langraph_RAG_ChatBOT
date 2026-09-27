@@ -1,48 +1,126 @@
+# app/workers/indexer_worker.py
+
 import os
 import json
-from confluent_kafka import Consumer, KafkaError
+import time
+from confluent_kafka import Consumer
 from dotenv import load_dotenv
+from elasticsearch import Elasticsearch
 
-load_dotenv("app/config/.env")
-
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP") or os.getenv("KAFKA_BOOTSTRAP_LOCALHOST", "127.0.0.1:9094")
-INPUT_TOPIC = os.getenv("KAFKA_EMBEDDED_TOPIC", "dsprawl.embedded_chunks")
+load_dotenv("app/configs/.env")
 
 class IndexerWorker:
-    def __init__(self):
+    def __init__(self, kafka_bootstrap=None):
+        # Synchronized bootstrap mapping across all components
+        self.kafka_bootstrap = kafka_bootstrap or os.getenv("KAFKA_BOOTSTRAP") or "127.0.0.1:9094"
+        self.input_topic = os.getenv("KAFKA_EMBEDDED_TOPIC", "dsprawl.embedded_chunks")
+        
+        es_host = os.getenv("ES_HOST", "http://elasticsearch:9200")
+        es_password = os.getenv("ES_PASSWORD", "strongpassword123") # 🎯 Grab our 9.x credential string
+        
+        # Enforce a guaranteed string fallback and clean empty env spaces
+        env_index = os.getenv("ES_INDEX_NAME", "").strip()
+        self.index_name = env_index if env_index else "es_documents"
+
+        # 🎯 CONNECT NATIVELY USING MODERN 9.x BASIC AUTH PARAMETERS
+        self.es = Elasticsearch(
+            es_host,
+            basic_auth=("elastic", os.getenv("ES_PASSWORD", "strongpassword123"))
+        )
+
+
+        # Kafka consumer setup
         self.consumer = Consumer({
-            'bootstrap.servers': KAFKA_BOOTSTRAP,
-            'group.id': 'indexer-worker',
-            'auto.offset.reset': 'earliest',
-            'enable.auto.commit': False
+            "bootstrap.servers": self.kafka_bootstrap,
+            "group.id": "indexer-worker",
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False
         })
 
+        self.create_index_if_not_exists()
+
+    def create_index_if_not_exists(self):
+        # ✅ Fixed Indentation: Now properly nested directly under the class scope
+        if not self.index_name or not isinstance(self.index_name, str):
+            self.index_name = "es_documents"
+
+        try:
+            if self.es.indices.exists(index=self.index_name):
+                print(f"[✓] Elasticsearch index '{self.index_name}' already exists.")
+                return
+
+            print(f"[*] Creating Elasticsearch index '{self.index_name}' with modern 9.x structures...")
+            
+            # Properties structure floats cleanly at the top-level under the mappings keyword parameter
+            target_mappings = {
+                "properties": {
+                    "chunk_id": {"type": "keyword"},
+                    "doc_id": {"type": "keyword"},
+                    "file_name": {"type": "keyword"},
+                    "file_type": {"type": "keyword"},
+                    "content": {"type": "text"},
+                    "content_hash": {"type": "keyword"},
+                    "created_at": {"type": "date"},
+                    "embedding_vector": {
+                        "type": "dense_vector",
+                        "dims": 384,
+                        "index": True,
+                        "similarity": "cosine"
+                    }
+                }
+            }
+            
+            # Explicit named call mapping to fit the new SDK interface specification
+            self.es.indices.create(index=self.index_name, mappings=target_mappings)
+            print(f"[✓] Elasticsearch index '{self.index_name}' successfully initialized.")
+        except Exception as e:
+            print(f"[X] Index verification failed against target '{self.index_name}': {repr(e)}")
+            raise e
+
+    def index_chunk(self, chunk):
+        embedding = chunk.get("embedding_vector")
+        if not embedding:
+            raise ValueError(f"Missing embedding for chunk: {chunk.get('chunk_id')}")
+
+        document = {
+            "chunk_id": chunk["chunk_id"],
+            "doc_id": chunk["doc_id"],
+            "file_name": chunk.get("file_name"),
+            "file_type": chunk.get("file_type"),
+            "content": chunk["content"],
+            "content_hash": chunk.get("content_hash"),
+            "created_at": chunk.get("created_at"),
+            "embedding_vector": embedding
+        }
+        self.es.index(index=self.index_name, id=chunk["chunk_id"], document=document)
+
     def run(self):
-        self.consumer.subscribe([INPUT_TOPIC])
-        print(f"[*] IndexerWorker active. Consuming from '{INPUT_TOPIC}'...")
+        self.consumer.subscribe([self.input_topic])
+        print(f"[*] IndexerWorker listening on '{self.input_topic}'...")
         
         empty_polls = 0
-        while empty_polls < 4:
+        while empty_polls < 40:
             msg = self.consumer.poll(timeout=1.5)
             if msg is None:
                 empty_polls += 1
                 continue
-            
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
-                    continue
-                print(f"[X] Indexer consumer error: {msg.error()}")
-                break
 
-            print("Message received in indexer consumer :", msg.value().decode('utf-8')[:100] + "...")
+            if msg.error():
+                print(f"[X] Kafka error: {msg.error()}")
+                continue
+
             empty_polls = 0
-            
             try:
-                payload = json.loads(msg.value().decode('utf-8'))
-                # Your Elasticsearch indexing logic goes here
-                print(f"[✓] Indexed Document in DB -> ID: {payload.get('chunk_id', 'unknown')[:12]}")
+                chunk = json.loads(msg.value().decode("utf-8"))
+                self.index_chunk(chunk)
                 self.consumer.commit(msg, asynchronous=False)
+                print(f"[✓] Indexed chunk: {chunk['chunk_id']} | Source: {chunk.get('file_name')}")
             except Exception as e:
-                print("indexing error:", e)
-                
+                print(f"[X] Indexing failed: {repr(e)}")
+
         self.consumer.close()
+        print("[*] IndexerWorker finished.")
+
+if __name__ == "__main__":
+    worker = IndexerWorker()
+    worker.run()

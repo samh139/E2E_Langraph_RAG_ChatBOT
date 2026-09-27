@@ -1,6 +1,6 @@
 import asyncio
 import time
-from langgraph.graph import END, StateGraph, CompiledGraph
+from langgraph.graph import END, StateGraph
 from app.agents.chunking_agent import ChunkingAgent
 from app.agents.docx_extractor_agent import DocxExtractionAgent
 from app.agents.file_classifier_agent import FileClassifierAgent
@@ -85,7 +85,7 @@ class IngestionWorkflow:
         self.workflow.add_edge("pptx_extractor", "chunking")
         self.workflow.add_edge("chunking", END)
 
-    def compile(self) -> CompiledGraph:
+    def compile(self):
         return self.compiled_graph
 
 # Exported compiled graph instance instance to match expected imports

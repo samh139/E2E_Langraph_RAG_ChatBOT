@@ -4,7 +4,7 @@ from docx.text.paragraph import Paragraph
 from app.workflow.state import IngestionState
 from app.llm.llm_client import OllamaClient
 from app.app_logger import LoggerFactory
-from app.storage.storage_service import StorageService # Import your MongoDB StorageService
+
 
 class DocxExtractionAgent:
 
@@ -149,28 +149,29 @@ class DocxExtractionAgent:
             "elements": elements,
         }
 
-        # Safe local DB saving mechanism
-        try:
-            # Construct dictionary payload manually to mirror your other extractors
-            mongo_payload = {
-                "run_id": run_id,
-                "file_path": file_path,
-                "file_name": state.file_name,
-                "file_extension": state.file_extension,
-                "mime_type": state.mime_type,
-                "file_type": state.file_type,
-                "extracted_text": final_text,
-                "extraction_metadata": extraction_metadata,
-                "status": "extracted",
-                "error": None
-            }
-            mongo_id = StorageService.save_docx_data(mongo_payload, run_id=run_id)
-            self.logger.info(f"[DOCX Extractor] Successfully persisted data to MongoDB. Doc Reference ID: {mongo_id}")
-        except Exception as storage_err:
-            self.logger.error(f"[DOCX Extractor Storage Error] Failed to write out to local database: {storage_err}")
+        # # Safe local DB saving mechanism
+        # try:
+        #     # Construct dictionary payload manually to mirror your other extractors
+        #     mongo_payload = {
+        #         "run_id": run_id,
+        #         "file_path": file_path,
+        #         "file_name": state.file_name,
+        #         "file_extension": state.file_extension,
+        #         "mime_type": state.mime_type,
+        #         "file_type": state.file_type,
+        #         "extracted_text": final_text,
+        #         "extraction_metadata": extraction_metadata,
+        #         "status": "extracted",
+        #         "error": None
+        #     }
+        #     mongo_id = StorageService.save_extracted_document(mongo_payload, run_id=run_id)
+        #     self.logger.info(f"[DOCX Extractor] Successfully persisted data to MongoDB. Doc Reference ID: {mongo_id}")
+        # except Exception as storage_err:
+        #     self.logger.error(f"[DOCX Extractor Storage Error] Failed to write out to local database: {storage_err}")
 
         # CORRECT: Returns a clean patch dictionary for LangGraph to merge into state automatically
         return {
+            "run_id": run_id,
             "extracted_text": final_text,
             "extraction_metadata": extraction_metadata,
             "status": "extracted",

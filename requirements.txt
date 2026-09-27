@@ -7,5 +7,12 @@ uvicorn
 pydantic
 confluent-kafka
 minio
-pypdf
+pymupdf
 python-dotenv
+python-docx
+python-pptx
+ollama
+sentence-transformers
+pymongo
+
+torch --index-url https://pytorch.org

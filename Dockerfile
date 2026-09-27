@@ -14,7 +14,7 @@ WORKDIR /workspace
 COPY requirements.txt .
 
 # 5. Install all our AI and database client dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # 6. Copy the rest of our application code into the workspace
 COPY . .

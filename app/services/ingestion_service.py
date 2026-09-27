@@ -13,15 +13,16 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
 
 from app.ingestion.minio_client import MinioStorageClient
-from app.workflow.ingestion_workflow import IngestionWorkflow as IngestionLangGraph
+from app.workflow.ingestion_workflow import graph as IngestionLangGraph
 from app.workflow.state import IngestionState
-from workers.embed_worker import EmbedWorker
-from workers.indexer_worker import IndexerWorker
+from app.workers.embed_worker import EmbedWorker
+from app.workers.indexer_worker import IndexerWorker
 
 class IngestionService:
     def __init__(self):
         self.storage = MinioStorageClient()
-        self.kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9094")
+        # Fallback cascade logic to ensure same port is mapped across all sub-workers
+        self.kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP") or os.getenv("KAFKA_BOOTSTRAP_SERVERS") or "127.0.0.1:9094"
         
         self.producer_config = {
             'bootstrap.servers': self.kafka_bootstrap,
@@ -50,6 +51,7 @@ class IngestionService:
             return 0
 
         print(f"[*] Found {len(files)} items. Running LangGraph workflow pipeline...")
+        processed_count = 0
 
         for file_path in files:
             run_id = str(uuid.uuid4())
@@ -82,26 +84,22 @@ class IngestionService:
                     print(f"[X] Workflow failed on file {file_path.name}: {getattr(final_state, 'error')}")
                     continue
 
-                # The LangGraph workflow automatically maps text items to ChunkingAgent internally.
-                # It appends structured document fragments into your state object attributes.
                 chunks = getattr(final_state, "chunks", [])
-                print(f"[✓] Graph extraction and chunking complete. Pushing to Kafka topic: {self.chunks_topic}")
+                print(f"[✓] Graph extraction complete. Pushing to Kafka topic: {self.chunks_topic}")
                 
-                for idx, chunk_item in enumerate(chunks):
-                    # Adapts to LangGraph Chunk output model keys dynamically
-                    content_str = chunk_item.get("content", chunk_item.get("text_content", ""))
+                for chunk_item in chunks:
+                    content_str = chunk_item["content"]
                     
                     chunk_payload = {
-                        "doc_id": run_id,
-                        "file_name": file_path.name,
-                        "chunk_id": chunk_item.get("id", chunk_item.get("chunk_id", f"{run_id}_c{idx}")),
+                        "chunk_id": chunk_item["chunk_id"],
+                        "doc_id": chunk_item["doc_id"],
+                        "file_name": chunk_item["file_name"],
+                        "file_type": chunk_item["file_type"],
                         "content": content_str,
                         "content_hash": hashlib.sha1(content_str.strip().encode("utf-8")).hexdigest(),
-                        "pages": chunk_item.get("pages", chunk_item.get("page", [])),
-                        "heading": chunk_item.get("heading"),
-                        "subheading": chunk_item.get("subheading"),
                         "created_at": datetime.now(timezone.utc).isoformat(),
                     }
+                    
                     self.producer.produce(
                         topic=self.chunks_topic,
                         key=chunk_payload["chunk_id"].encode('utf-8'),
@@ -109,40 +107,33 @@ class IngestionService:
                     )
                 
                 self.producer.flush()
+                processed_count += 1
                 
                 if os.path.exists(local_worker_path):
                     os.remove(local_worker_path)
 
                 print(f"[✓] Document ingestion complete for: {file_path.name}")
-
             except Exception as e:
-                print(f"[X] Critical pipeline issue on asset {file_path.name}: {e}")
-
-        return len(files)
+                print(f"[X] Error processing file {file_path.name}: {e}")
+                continue
+                
+        return processed_count # FIXED: Crucial count returned to caller
 
     def run_embedding_phase(self):
         print("\n=====================================================================")
         print(f"🧠 [PHASE 2] Handing Execution Over to EmbedWorker Module")
         print("=====================================================================")
-        # Instantiates and executes your actual class component code file logic cleanly
-        embed_worker = EmbedWorker()
-        embed_worker.start() if hasattr(embed_worker, 'start') else embed_worker.run()
+        # Explicit bootstrap config passed to match running engine context
+        embed_worker = EmbedWorker(kafka_bootstrap=self.kafka_bootstrap)
+        embed_worker.run()
 
     def run_indexing_phase(self):
         print("\n=====================================================================")
         print(f"🔍 [PHASE 3] Handing Execution Over to IndexerWorker Module")
         print("=====================================================================")
-        # Instantiates and executes your actual class component code file logic cleanly
-        indexer_worker = IndexerWorker()
-        indexer_worker.start() if hasattr(indexer_worker, 'start') else indexer_worker.run()
-
-    # def run_clustering_service(self):
-    #     print("\n=====================================================================")
-    #     print(f"📊 [PHASE 4] Executing Out-Of-Band Topic Clustering Service")
-    #     print("=====================================================================")
-    #     print("[*] Performing spatial clustering computation maps against index endpoints...")
-    #     time.sleep(1.0)
-    #     print("[SUCCESS] Spatial topology calculated. Clustering state sync complete.")
+        # Explicit bootstrap config passed to match running engine context
+        indexer_worker = IndexerWorker(kafka_bootstrap=self.kafka_bootstrap)
+        indexer_worker.run()
 
     async def execute_complete_pipeline(self, folder_path: str):
         start_time = time.perf_counter()
@@ -152,23 +143,28 @@ class IngestionService:
         
         total_files = await self.bulk_ingest(folder_path)
         if total_files == 0:
-            print("[X] Ingestion lifecycle aborted: Processing folder source path is empty.")
+            print("[X] Ingestion lifecycle aborted: Processing folder source path is empty or files failed.")
             return
 
-        self.run_embedding_phase()
-        self.run_indexing_phase()
-        # self.run_clustering_service()
+        print("\n[*] Initializing asynchronous streaming consumer workers...")
+        loop = asyncio.get_running_loop()
+        
+        embed_task = loop.run_in_executor(None, self.run_embedding_phase)
+        index_task = loop.run_in_executor(None, self.run_indexing_phase)
+
+        await asyncio.gather(embed_task, index_task)
 
         duration = time.perf_counter() - start_time
         print("\n=====================================================================")
         print(f"🏆 SUCCESS: END-TO-END BATCH LIFECYCLE COMPLETE! Total Time: {duration:.3f}s")
         print("=====================================================================")
 
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv("app/configs/.env")
     
     service = IngestionService()
-    TARGET_DATA_DIR = "./data_staging"
+    TARGET_DATA_DIR = "./data"
     
     asyncio.run(service.execute_complete_pipeline(TARGET_DATA_DIR))

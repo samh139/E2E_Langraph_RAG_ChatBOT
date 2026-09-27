@@ -8,6 +8,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: chatbot_worker
+    tty: true
     depends_on:
       kafka:
         condition: service_started
@@ -21,12 +22,13 @@ services:
       - ./:/workspace
     ports:
       - "8000:8000"
+    command: ["python", "-m", "app.services.ingestion_service"]
 
   # -----------------------------------------------------------------
   # 2. VECTOR DATABASE ENGINE
   # -----------------------------------------------------------------
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.1
     container_name: es
     env_file:
       - ./app/configs/.env
@@ -34,7 +36,11 @@ services:
       - node.name=es01
       - cluster.name=${ES_CLUSTER_NAME:-docsprawl-es}
       - discovery.type=single-node
-      - xpack.security.enabled=false
+      
+      # 🎯 MANDATORY SETTINGS FOR 9.x SERIES ECOSYSTEMS
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ES_PASSWORD:-strongpassword123} 
+      
       - ES_JAVA_OPTS=-Xms${ES_HEAP:-4g} -Xmx${ES_HEAP:-4g}
       - bootstrap.memory_lock=true
     ulimits:
@@ -46,10 +52,12 @@ services:
     ports:
       - "9200:9200"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sSf http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
+      # Updated healthcheck to authenticate using the custom system user credentials
+      test: ["CMD-SHELL", "curl -u elastic:${ES_PASSWORD:-strongpassword123} -sSf http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
       interval: 10s
       timeout: 5s
       retries: 10
+
 
   # -----------------------------------------------------------------
   # 3. STREAMING & EVENT BACKBONE
@@ -181,25 +189,6 @@ services:
       - "8001:8001"
     depends_on:
       - redis
-
-  # -----------------------------------------------------------------
-  # 6. METADATA APPLICATION LOG ENGINE
-  # -----------------------------------------------------------------
-  mongo:
-    image: mongo:8.0.26
-    container_name: mongo
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-    volumes:
-      - mongodata:/data/db
-    ports:
-      - "27017:27017"
-    healthcheck:
-      test: ["CMD-SHELL", "echo 'db.runCommand({ping:1})' | mongosh localhost:27017/test --quiet || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
 volumes:
   esdata:
