@@ -30,6 +30,7 @@ from app.ingestion.clustering.es_writer import ESWriter
 from app.app_logger import LoggerFactory
 from app.ingestion.clustering.cluster_summarizer import summarize_cluster
 from app.ingestion.clustering.chunk_fetcher import fetch_chunk_texts
+from app.ingestion.clustering.tag_enrichment import cluster_tag_fields
 
 logger = LoggerFactory.get_logger("cluster_builder")
 
@@ -113,6 +114,7 @@ def build_all_clusters(es_writer: ESWriter):
 
         texts = fetch_chunk_texts(member_ids)
         root_doc["summary"], _ = summarize_cluster(texts)
+        root_doc.update(cluster_tag_fields(member_ids))
 
         # Write root cluster doc
         es_writer.write_cluster_doc(

@@ -8,7 +8,8 @@
 #   • Write clusters → temp index
 #   • Atomically swap alias after success
 #   • Delete old index
-#   • No ES writes unless everything succeeds
+#   • Publish cluster alias only after a successful build
+#   • Chunk tag enrichment persists independently and resumes on retry
 #   • Supports dry_run=True (no ES ops)
 # ============================================================
 
@@ -19,6 +20,7 @@ import time
 from app.ingestion.clustering.alias_manager import AliasManager
 from app.ingestion.clustering.es_writer import ESWriter
 from app.ingestion.clustering.cluster_builder import build_all_clusters
+from app.ingestion.clustering.tag_enrichment import enrich_chunks
 from app.ingestion.clustering.config import (
     CLUSTERS_ALIAS,
     DRY_RUN,
@@ -79,6 +81,9 @@ def run_clustering_job(dry_run: bool = DRY_RUN) -> dict:
         # STEP 2 — run full cluster build
         # ------------------------------------------------------------
         logger.info("[CLUSTER JOB] Starting cluster build pipeline...")
+        if not dry_run:
+            logger.info("[CLUSTER JOB] Enriching chunk tags...")
+            enrich_chunks()
         docs = build_all_clusters(writer)
         logger.info(f"[CLUSTER JOB] Cluster build complete → {len(docs)} docs")
 

@@ -12,6 +12,7 @@ from app.app_logger import LoggerFactory
 from app.ingestion.clustering.es_writer import ESWriter
 from app.ingestion.clustering.cluster_summarizer import summarize_cluster
 from app.ingestion.clustering.chunk_fetcher import fetch_chunk_texts
+from app.ingestion.clustering.tag_enrichment import cluster_tag_fields
 
 logger = LoggerFactory.get_logger("kmeans_subclusters")
 
@@ -114,6 +115,7 @@ def write_subclusters_to_es(es_writer: ESWriter, root_cluster_id: str, subcluste
     for doc in subcluster_docs:
         texts = fetch_chunk_texts(doc["chunk_ids"])
         doc["summary"], _ = summarize_cluster(texts)
+        doc.update(cluster_tag_fields(doc["chunk_ids"]))
         es_writer.write_cluster_doc(index=index, doc_id=doc["cluster_id"], body=doc)
 
     sub_ids = [doc["cluster_id"] for doc in subcluster_docs]

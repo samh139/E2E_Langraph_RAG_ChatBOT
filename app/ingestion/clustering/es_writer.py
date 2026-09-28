@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timezone
 from elasticsearch import Elasticsearch
 from app.ingestion.clustering.config import ES_HOST, EMBEDDING_DIM
+from app.ingestion.clustering.tag_enrichment import TAG_MAPPING, VECTOR_MAPPING
 
 class ESWriter:
     """
@@ -38,6 +39,8 @@ class ESWriter:
                 "level": {"type": "integer"},
                 "parent_cluster": {"type": "keyword"},
                 "summary": {"type": "text"},
+                "tags": TAG_MAPPING,
+                "tags_vector": VECTOR_MAPPING,
                 "vector": {
                     "type": "dense_vector",
                     "dims": EMBEDDING_DIM, # Will resolve to 384 via corrected config

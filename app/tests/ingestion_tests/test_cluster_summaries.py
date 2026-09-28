@@ -16,7 +16,8 @@ class SummaryTests(unittest.TestCase):
 
     def test_root_summary_is_written(self):
         writer = MagicMock(active_index='test-clusters')
-        with patch.object(self.builder, 'load_all_vectors_and_ids', return_value=(np.ones((2, 384)), ['a', 'b'])), \
+        with patch.object(self.builder, 'cluster_tag_fields', return_value={'tags': ['fees']}), \
+             patch.object(self.builder, 'load_all_vectors_and_ids', return_value=(np.ones((2, 384)), ['a', 'b'])), \
              patch.object(self.builder, 'run_agglomerative_clustering', return_value={'root': [0, 1]}), \
              patch.object(self.builder, 'fetch_chunk_texts', return_value=['Bank fees']) as fetch, \
              patch.object(self.builder, 'summarize_cluster', return_value=('Explains bank fees', [0.1]*384)):
@@ -27,7 +28,8 @@ class SummaryTests(unittest.TestCase):
     def test_subcluster_summary_is_written(self):
         writer = MagicMock(active_index='test-clusters')
         doc = {'cluster_id': 'sub', 'chunk_ids': ['a']}
-        with patch.object(self.subclusters, 'fetch_chunk_texts', return_value=['ATM limits']), \
+        with patch.object(self.subclusters, 'cluster_tag_fields', return_value={'tags': ['atm']}), \
+             patch.object(self.subclusters, 'fetch_chunk_texts', return_value=['ATM limits']), \
              patch.object(self.subclusters, 'summarize_cluster', return_value=('Explains ATM limits', [0.1]*384)):
             self.subclusters.write_subclusters_to_es(writer, 'root', [doc])
         self.assertEqual(writer.write_cluster_doc.call_args.kwargs['body']['summary'], 'Explains ATM limits')
