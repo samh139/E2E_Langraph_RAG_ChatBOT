@@ -38,7 +38,7 @@ services:
       - discovery.type=single-node
       
       # 🎯 MANDATORY SETTINGS FOR 9.x SERIES ECOSYSTEMS
-      - xpack.security.enabled=true
+      - xpack.security.enabled=false
       - ELASTIC_PASSWORD=${ES_PASSWORD:-strongpassword123} 
       
       - ES_JAVA_OPTS=-Xms${ES_HEAP:-4g} -Xmx${ES_HEAP:-4g}

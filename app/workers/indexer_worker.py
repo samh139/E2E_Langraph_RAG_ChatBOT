@@ -1,33 +1,34 @@
 # app/workers/indexer_worker.py
 
 import os
+from pathlib import Path
 import json
-import time
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, KafkaError
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 
-load_dotenv("app/configs/.env")
+load_dotenv(Path(__file__).resolve().parents[1] / "configs" / ".env")
 
 class IndexerWorker:
     def __init__(self, kafka_bootstrap=None):
         # Synchronized bootstrap mapping across all components
-        self.kafka_bootstrap = kafka_bootstrap or os.getenv("KAFKA_BOOTSTRAP") or "127.0.0.1:9094"
+        self.kafka_bootstrap = (kafka_bootstrap or os.getenv("KAFKA_BOOTSTRAP")
+                                or os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+                                or os.getenv("KAFKA_BOOTSTRAP_LOCALHOST")
+                                or "127.0.0.1:9094")
         self.input_topic = os.getenv("KAFKA_EMBEDDED_TOPIC", "dsprawl.embedded_chunks")
-        
+
         es_host = os.getenv("ES_HOST", "http://elasticsearch:9200")
-        es_password = os.getenv("ES_PASSWORD", "strongpassword123") # 🎯 Grab our 9.x credential string
-        
+        es_password = os.getenv("ES_PASSWORD") # 🎯 Grab our 9.x credential string
+
         # Enforce a guaranteed string fallback and clean empty env spaces
         env_index = os.getenv("ES_INDEX_NAME", "").strip()
         self.index_name = env_index if env_index else "es_documents"
 
-        # 🎯 CONNECT NATIVELY USING MODERN 9.x BASIC AUTH PARAMETERS
-        self.es = Elasticsearch(
-            es_host,
-            basic_auth=("elastic", os.getenv("ES_PASSWORD", "strongpassword123"))
-        )
-
+        es_options = {}
+        if es_password:
+            es_options["basic_auth"] = (os.getenv("ES_USERNAME", "elastic"), es_password)
+        self.es = Elasticsearch(es_host, **es_options)
 
         # Kafka consumer setup
         self.consumer = Consumer({
@@ -50,7 +51,7 @@ class IndexerWorker:
                 return
 
             print(f"[*] Creating Elasticsearch index '{self.index_name}' with modern 9.x structures...")
-            
+
             # Properties structure floats cleanly at the top-level under the mappings keyword parameter
             target_mappings = {
                 "properties": {
@@ -69,7 +70,7 @@ class IndexerWorker:
                     }
                 }
             }
-            
+
             # Explicit named call mapping to fit the new SDK interface specification
             self.es.indices.create(index=self.index_name, mappings=target_mappings)
             print(f"[✓] Elasticsearch index '{self.index_name}' successfully initialized.")
@@ -97,28 +98,33 @@ class IndexerWorker:
     def run(self):
         self.consumer.subscribe([self.input_topic])
         print(f"[*] IndexerWorker listening on '{self.input_topic}'...")
-        
-        empty_polls = 0
-        while empty_polls < 40:
-            msg = self.consumer.poll(timeout=1.5)
-            if msg is None:
-                empty_polls += 1
-                continue
 
-            if msg.error():
-                print(f"[X] Kafka error: {msg.error()}")
-                continue
-
+        try:
             empty_polls = 0
-            try:
-                chunk = json.loads(msg.value().decode("utf-8"))
-                self.index_chunk(chunk)
-                self.consumer.commit(msg, asynchronous=False)
-                print(f"[✓] Indexed chunk: {chunk['chunk_id']} | Source: {chunk.get('file_name')}")
-            except Exception as e:
-                print(f"[X] Indexing failed: {repr(e)}")
+            while empty_polls < 40:
+                msg = self.consumer.poll(timeout=1.5)
+                if msg is None:
+                    empty_polls += 1
+                    continue
 
-        self.consumer.close()
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        continue
+                    raise RuntimeError(f"Kafka error: {msg.error()}")
+
+                empty_polls = 0
+                try:
+                    chunk = json.loads(msg.value().decode("utf-8"))
+                    self.index_chunk(chunk)
+                    self.consumer.commit(msg, asynchronous=False)
+                    #print(f"[✓] Indexed chunk: {chunk['chunk_id']} | Source: {chunk.get('file_name')}")
+                except Exception as e:
+                    print(f"[X] Indexing failed: {repr(e)}")
+                    raise
+
+        finally:
+            self.consumer.close()
+            self.es.close()
         print("[*] IndexerWorker finished.")
 
 if __name__ == "__main__":

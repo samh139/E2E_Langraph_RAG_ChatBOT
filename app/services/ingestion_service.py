@@ -15,6 +15,7 @@ sys.path.append(str(ROOT_DIR))
 from app.ingestion.minio_client import MinioStorageClient
 from app.workflow.ingestion_workflow import graph as IngestionLangGraph
 from app.workflow.state import IngestionState
+from app.utils.kafka_delivery import produce_confirmed
 from app.workers.embed_worker import EmbedWorker
 from app.workers.indexer_worker import IndexerWorker
 
@@ -22,7 +23,7 @@ class IngestionService:
     def __init__(self):
         self.storage = MinioStorageClient()
         # Fallback cascade logic to ensure same port is mapped across all sub-workers
-        self.kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP") or os.getenv("KAFKA_BOOTSTRAP_SERVERS") or "127.0.0.1:9094"
+        self.kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP") or os.getenv("KAFKA_BOOTSTRAP_SERVERS") or os.getenv("KAFKA_BOOTSTRAP_LOCALHOST") or "127.0.0.1:9094"
         
         self.producer_config = {
             'bootstrap.servers': self.kafka_bootstrap,
@@ -31,7 +32,7 @@ class IngestionService:
             'max.in.flight.requests.per.connection': 1
         }
         self.producer = Producer(self.producer_config)
-        self.chunks_topic = "dsprawl.chunks"
+        self.chunks_topic = os.getenv("KAFKA_CHUNKS_TOPIC", "dsprawl.chunks")
 
     async def bulk_ingest(self, target_folder_path: str) -> int:
         print("\n=====================================================================")
@@ -80,11 +81,14 @@ class IngestionService:
                 print(f"[*] Dispatching to LangGraph workflow architecture...")
                 final_state = await IngestionLangGraph.ainvoke(state_input)
                 
-                if hasattr(final_state, 'error') and getattr(final_state, 'error'):
-                    print(f"[X] Workflow failed on file {file_path.name}: {getattr(final_state, 'error')}")
-                    continue
-
-                chunks = getattr(final_state, "chunks", [])
+                # Compiled StateGraph returns a mapping, even with a Pydantic input.
+                if not isinstance(final_state, dict):
+                    final_state = final_state.model_dump()
+                if final_state.get("error"):
+                    raise RuntimeError(final_state["error"])
+                chunks = final_state.get("chunks") or []
+                if not chunks:
+                    raise ValueError("Workflow produced no chunks")
                 print(f"[✓] Graph extraction complete. Pushing to Kafka topic: {self.chunks_topic}")
                 
                 for chunk_item in chunks:
@@ -100,7 +104,8 @@ class IngestionService:
                         "created_at": datetime.now(timezone.utc).isoformat(),
                     }
                     
-                    self.producer.produce(
+                    produce_confirmed(
+                        self.producer,
                         topic=self.chunks_topic,
                         key=chunk_payload["chunk_id"].encode('utf-8'),
                         value=json.dumps(chunk_payload).encode('utf-8')
@@ -146,13 +151,10 @@ class IngestionService:
             print("[X] Ingestion lifecycle aborted: Processing folder source path is empty or files failed.")
             return
 
-        print("\n[*] Initializing asynchronous streaming consumer workers...")
-        loop = asyncio.get_running_loop()
-        
-        embed_task = loop.run_in_executor(None, self.run_embedding_phase)
-        index_task = loop.run_in_executor(None, self.run_indexing_phase)
-
-        await asyncio.gather(embed_task, index_task)
+        # This entry point is a finite batch: finish publishing embeddings before
+        # starting the indexer's idle timer (model loading can take over a minute).
+        await asyncio.to_thread(self.run_embedding_phase)
+        await asyncio.to_thread(self.run_indexing_phase)
 
         duration = time.perf_counter() - start_time
         print("\n=====================================================================")
