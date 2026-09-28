@@ -112,6 +112,8 @@ def write_subclusters_to_es(es_writer: ESWriter, root_cluster_id: str, subcluste
     logger.info(f"[ES] Writing {len(subcluster_docs)} subclusters → index={index}")
 
     for doc in subcluster_docs:
+        texts = fetch_chunk_texts(doc["chunk_ids"])
+        doc["summary"], _ = summarize_cluster(texts)
         es_writer.write_cluster_doc(index=index, doc_id=doc["cluster_id"], body=doc)
 
     sub_ids = [doc["cluster_id"] for doc in subcluster_docs]

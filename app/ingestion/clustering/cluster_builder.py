@@ -111,6 +111,9 @@ def build_all_clusters(es_writer: ESWriter):
         # Build parent doc
         root_doc = make_root_cluster_doc(root_id, centroid, member_ids)
 
+        texts = fetch_chunk_texts(member_ids)
+        root_doc["summary"], _ = summarize_cluster(texts)
+
         # Write root cluster doc
         es_writer.write_cluster_doc(
             index=es_writer.active_index,

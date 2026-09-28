@@ -9,34 +9,34 @@
 # ---------------------------------------------------------
 
 import time
+import os
 import numpy as np
 from typing import List, Tuple, Dict, Optional
-from elasticsearch import Elasticsearch, helpers
+from elasticsearch import Elasticsearch
 
 from app.app_logger import LoggerFactory
-from app.ingestion.clustering.config import CHUNKS_INDEX
+from app.ingestion.clustering.config import CHUNKS_INDEX, ES_HOST
 
 logger = LoggerFactory.get_logger("vector_loader")
 
-from elasticsearch import Elasticsearch
+def es_connect(es_host: str):
+    options = {}
+    password = os.getenv("ES_PASSWORD")
+    if password:
+        options["basic_auth"] = (os.getenv("ES_USERNAME", "elastic"), password)
+    return Elasticsearch(es_host, **options)
 
-#using elastic search server 
-ES_HOST =  "http://localhost:9200"
-# ES_HOST =  "http://10.3.0.5:9200"
+
+# Initialize lazily; all clustering readers use the configured Docker endpoint.
+es_connection = None
 
 
-def es_connect(es_host:str):
-    return Elasticsearch(es_host)
-
-es_connection=es_connect(es_host=ES_HOST)
-
-def get_es_connection()->Elasticsearch:
+def get_es_connection() -> Elasticsearch:
     global es_connection
-    if  es_connection:
-        return es_connection
-    
-    es_connection=es_connect(es_host=ES_HOST)
+    if es_connection is None:
+        es_connection = es_connect(es_host=ES_HOST)
     return es_connection
+
 
 class VectorLoader:
     """

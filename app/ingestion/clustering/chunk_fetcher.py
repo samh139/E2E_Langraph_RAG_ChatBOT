@@ -16,7 +16,7 @@ def fetch_chunk_texts(chunk_ids, limit=8):
             "query": {
                 "terms": {
                     # IMPORTANT: keyword field
-                    "chunk_id.keyword": chunk_ids
+                    "chunk_id": chunk_ids
                 }
             }
         }

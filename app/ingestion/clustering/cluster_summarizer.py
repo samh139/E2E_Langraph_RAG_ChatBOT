@@ -6,7 +6,7 @@ import torch
 from typing import List, Tuple
 from sentence_transformers import SentenceTransformer
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://docker.internal")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434")
 SUMMARY_MODEL = os.getenv("SUMMARY_MODEL", "gemma3:12b")
 
 SYSTEM_PROMPT = """
@@ -33,6 +33,9 @@ def summarize_cluster(chunk_texts: List[str]) -> Tuple[str, List[float]]:
     Generates an LLM summary string AND its matching 384-dimensional dense vector array.
     Returns: Tuple[summary_text, summary_vector]
     """
+    if not chunk_texts or not any(text.strip() for text in chunk_texts):
+        raise ValueError("Cannot summarize a cluster without chunk text")
+
     excerpts = "\n\n".join(f"- {text[:500]}" for text in chunk_texts)
 
     prompt = f"""
@@ -52,15 +55,26 @@ Cluster label:
 
     try:
         resp = requests.post(
-            f"{OLLAMA_URL}/api/generate",
+            f"{OLLAMA_URL.rstrip('/')}/api/generate",
             json=payload,
             timeout=120,
         )
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except requests.HTTPError as exc:
+            try:
+                detail = resp.json().get("error", resp.text)
+            except ValueError:
+                detail = resp.text
+            raise RuntimeError(
+                f"Ollama model {SUMMARY_MODEL!r} at {OLLAMA_URL} "
+                f"returned HTTP {resp.status_code}: {str(detail)[:500]}"
+            ) from exc
         summary_text = resp.json().get("response", "").strip()
+        if not summary_text:
+            raise ValueError("Ollama returned an empty summary")
     except Exception as e:
-        print(f"[X] Ollama Summary execution failed: {e}. Falling back to default baseline text.")
-        summary_text = "Banking service capability summary baseline node cluster entry"
+        raise RuntimeError(f"Cluster summary generation failed: {e}") from e
 
     # Natively compute the 384-dimensional dense vector from the summary string text
     summary_vector = EMBEDDING_MODEL.encode(summary_text, convert_to_numpy=True, normalize_embeddings=True).tolist()

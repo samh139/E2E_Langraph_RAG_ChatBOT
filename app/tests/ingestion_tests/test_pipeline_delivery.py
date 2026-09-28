@@ -15,6 +15,7 @@ class PipelineTests(unittest.TestCase):
     def setUpClass(cls):
         # Replace extraction/model dependencies, retaining the actual service and workers.
         with patch.dict('sys.modules', {
+            'app.ingestion.clustering.cluster_job': MagicMock(),
             'torch': MagicMock(),
             'sentence_transformers': MagicMock(),
             'app.ingestion.minio_client': MagicMock(),
@@ -126,8 +127,20 @@ class PipelineTests(unittest.TestCase):
         events = []
         service.run_embedding_phase = lambda: events.append('embed')
         service.run_indexing_phase = lambda: events.append('index')
-        asyncio.run(service.execute_complete_pipeline('data'))
+        with patch.object(self.service_module, 'run_clustering_job', return_value={'status': 'SUCCESS'}):
+            asyncio.run(service.execute_complete_pipeline('data'))
         self.assertEqual(events, ['embed', 'index'])
+
+    def test_failed_clustering_prevents_pipeline_success(self):
+        service = self.service_module.IngestionService.__new__(self.service_module.IngestionService)
+        service.bulk_ingest = AsyncMock(return_value=1)
+        service.run_embedding_phase = MagicMock()
+        service.run_indexing_phase = MagicMock()
+        with patch.object(self.service_module, 'run_clustering_job',
+                          return_value={'status': 'FAILED', 'error': 'connection refused'}):
+            with self.assertRaisesRegex(RuntimeError, 'connection refused'):
+                asyncio.run(service.execute_complete_pipeline('data'))
+
 
 
 if __name__ == '__main__':

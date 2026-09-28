@@ -158,16 +158,19 @@ class IngestionService:
         await asyncio.to_thread(self.run_embedding_phase)
         await asyncio.to_thread(self.run_indexing_phase)
 
-                # 🎯 [PHASE 4]: HIERARCHICAL TOPIC CLUSTERING & SUMMARY MAP GENERATION
+        # 🎯 [PHASE 4]: HIERARCHICAL TOPIC CLUSTERING & SUMMARY MAP GENERATION
         print("\n=====================================================================")
         print(f"🗂️ [PHASE 4] Rebuilding Hierarchical Topic Clusters & Summaries")
         print("=====================================================================")
         try:
             # Executes text grouping dynamically over all chunks now safe in ES
-            await asyncio.to_thread(run_clustering_job, dry_run=False)
+            result = await asyncio.to_thread(run_clustering_job, dry_run=False)
+            if result.get("status") != "SUCCESS":
+                raise RuntimeError(f"Clustering failed: {result.get('error', result)}")
             print("[✓] Hierarchical document clustering schema map complete.")
         except Exception as cluster_err:
             print(f"[X] Clustering optimization execution pass failed: {cluster_err}")
+            raise
 
         duration = time.perf_counter() - start_time
         print("\n=====================================================================")

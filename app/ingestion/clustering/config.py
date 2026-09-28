@@ -28,15 +28,15 @@ TEMP_INDEX_PREFIX = "clusters_v3_temp_"
 # LEVEL-1 CLUSTERING PARAMETERS — AGGLOMERATIVE
 # ----------------------------------------------------------------------
 # Optimal semantic cosine metric separation threshold for 384-d vectors
-AGGLOMERATIVE_DISTANCE_THRESHOLD = 0.55
+AGGLOMERATIVE_DISTANCE_THRESHOLD = 0.35
 AGGLOMERATIVE_MIN_CLUSTER_SIZE = 5
 
 # ----------------------------------------------------------------------
 # LEVEL-2 CLUSTERING PARAMETERS — ADAPTIVE K-MEANS
 # ----------------------------------------------------------------------
 # Control metrics to handle split distribution ceilings safely
-SUBCLUSTER_MIN_SIZE = 40
-SUBCLUSTER_MAX_SIZE = 400
+SUBCLUSTER_MIN_SIZE = 10
+SUBCLUSTER_MAX_SIZE = 50 
 
 # Adaptive cluster partition targets
 SUBCLUSTER_MIN_K = 3
