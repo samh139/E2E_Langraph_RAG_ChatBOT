@@ -18,6 +18,8 @@ from app.workflow.state import IngestionState
 from app.utils.kafka_delivery import produce_confirmed
 from app.workers.embed_worker import EmbedWorker
 from app.workers.indexer_worker import IndexerWorker
+from app.ingestion.clustering.cluster_job import run_clustering_job
+
 
 class IngestionService:
     def __init__(self):
@@ -156,12 +158,22 @@ class IngestionService:
         await asyncio.to_thread(self.run_embedding_phase)
         await asyncio.to_thread(self.run_indexing_phase)
 
+                # 🎯 [PHASE 4]: HIERARCHICAL TOPIC CLUSTERING & SUMMARY MAP GENERATION
+        print("\n=====================================================================")
+        print(f"🗂️ [PHASE 4] Rebuilding Hierarchical Topic Clusters & Summaries")
+        print("=====================================================================")
+        try:
+            # Executes text grouping dynamically over all chunks now safe in ES
+            await asyncio.to_thread(run_clustering_job, dry_run=False)
+            print("[✓] Hierarchical document clustering schema map complete.")
+        except Exception as cluster_err:
+            print(f"[X] Clustering optimization execution pass failed: {cluster_err}")
+
         duration = time.perf_counter() - start_time
         print("\n=====================================================================")
         print(f"🏆 SUCCESS: END-TO-END BATCH LIFECYCLE COMPLETE! Total Time: {duration:.3f}s")
         print("=====================================================================")
-
-
+        
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv("app/configs/.env")

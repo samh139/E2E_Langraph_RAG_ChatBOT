@@ -91,6 +91,20 @@ source rag_chat_env/bin/activate  # On Windows use: rag_chat_env\Scripts\activat
 
 # 3. Install core production runtime dependencies
 pip install -r requirements.txt
+
+# 4. Run the docker image-
+docker compose up -d --build
+
+#5. Restart and run the application
+docker compose restart app-worker
+docker compose logs -f app-worker
+
+#6. To stop the running container
+docker compose down
+
+#7. To prune all volumes and remove all orphans(Resets everything, then build again)
+docker compose down --remove-orphans -v
+docker volume prune --force
 ```
 
 ---
