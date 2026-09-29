@@ -131,25 +131,3 @@ def run_clustering_job(dry_run: bool = DRY_RUN) -> dict:
             "error": str(e),
             "elapsed_sec": round(time.time() - start_time, 2),
         }
-
-# ------------------------------------------------------------
-# CLI Entrypoint
-# ------------------------------------------------------------
-
-'''
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run clustering job")
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Run clustering without creating ES index or swapping alias",
-    )
-
-    args = parser.parse_args()
-
-    result = run_clustering_job(dry_run=args.dry_run)
-
-    print("\n================ CLUSTER JOB RESULT ================\n")
-    print(result)
-    print("\n====================================================\n")
-'''

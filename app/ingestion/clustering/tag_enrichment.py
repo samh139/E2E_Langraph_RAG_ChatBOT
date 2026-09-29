@@ -96,7 +96,7 @@ def enrich_chunks(es=None):
         else:
             content = source.get('content', '')
             if content not in content_cache:
-                content_cache[content] = generate_tags(content)
+                content_cache[content] = generate_tags(content) ## LLM call to generate tags for the chunk content
             tags = content_cache[content]
         es.update(index=CHUNKS_INDEX, id=hit['_id'], doc={
             "chunk_metadata": {**metadata, "tags": tags},
