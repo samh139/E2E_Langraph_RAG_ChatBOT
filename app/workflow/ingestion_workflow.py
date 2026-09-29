@@ -1,11 +1,11 @@
 import asyncio
 import time
 from langgraph.graph import END, StateGraph
-from app.agents.chunking_agent import ChunkingAgent
-from app.agents.docx_extractor_agent import DocxExtractionAgent
-from app.agents.file_classifier_agent import FileClassifierAgent
-from app.agents.pdf_extractor_agent import PDFExtractorAgent
-from app.agents.pptx_extractor_agent import PPTXExtractorAgent
+from app.agents.ingestion_agents.chunking_agent import ChunkingAgent
+from app.agents.ingestion_agents.docx_extractor_agent import DocxExtractionAgent
+from app.agents.ingestion_agents.file_classifier_agent import FileClassifierAgent
+from app.agents.ingestion_agents.pdf_extractor_agent import PDFExtractorAgent
+from app.agents.ingestion_agents.pptx_extractor_agent import PPTXExtractorAgent
 from app.workflow.state import IngestionState
 
 class IngestionWorkflow:
