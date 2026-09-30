@@ -14,5 +14,6 @@ python-pptx
 ollama
 sentence-transformers
 pymongo
+uvicorn
 
 torch --index-url https://pytorch.org
