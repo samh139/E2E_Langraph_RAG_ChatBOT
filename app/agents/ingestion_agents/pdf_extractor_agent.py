@@ -1,7 +1,7 @@
 from pathlib import Path
 import pymupdf
 from datetime import datetime, timezone
-from app.workflow.state import IngestionState
+from app.workflow.ingestion_state import IngestionState
 from app.llm.llm_client import OllamaClient
 from app.app_logger import LoggerFactory
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 from docx import Document
 from docx.text.paragraph import Paragraph
-from app.workflow.state import IngestionState
+from app.workflow.ingestion_state import IngestionState
 from app.llm.llm_client import OllamaClient
 from app.app_logger import LoggerFactory
 

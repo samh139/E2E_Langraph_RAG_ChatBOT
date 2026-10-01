@@ -1,5 +1,5 @@
 from pathlib import Path
-from app.workflow.state import IngestionState
+from app.workflow.ingestion_state import IngestionState
 from app.utils.file_utils import get_file_type, get_extension
 from app.app_logger import LoggerFactory
 

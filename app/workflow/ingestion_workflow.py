@@ -6,7 +6,7 @@ from app.agents.ingestion_agents.docx_extractor_agent import DocxExtractionAgent
 from app.agents.ingestion_agents.file_classifier_agent import FileClassifierAgent
 from app.agents.ingestion_agents.pdf_extractor_agent import PDFExtractorAgent
 from app.agents.ingestion_agents.pptx_extractor_agent import PPTXExtractorAgent
-from app.workflow.state import IngestionState
+from app.workflow.ingestion_state import IngestionState
 
 class IngestionWorkflow:
     def __init__(self):

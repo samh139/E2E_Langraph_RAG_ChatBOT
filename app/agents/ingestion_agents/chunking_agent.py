@@ -1,6 +1,6 @@
 # app/agents/chunking_agent.py
 
-from app.workflow.state import IngestionState
+from app.workflow.ingestion_state import IngestionState
 from app.utils.chunking_engine import ChunkingEngine
 from app.app_logger import LoggerFactory 
 
