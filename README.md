@@ -65,8 +65,8 @@ docker exec -it kafka kafka-topics --list --bootstrap-server localhost:9092
 
 **Expected Output:**
 ```text
-chat.requests
-chat.responses
+chat-requests
+chat-responses
 dsprawl.chunks
 dsprawl.embedded_chunks
 ```
@@ -107,6 +107,45 @@ docker compose down --remove-orphans -v
 docker volume prune --force
 ```
 
+## Retrieval
+## Manually create the retrieval kafka topics
+docker compose exec kafka kafka-topics \
+  --create --if-not-exists \
+  --bootstrap-server kafka:9092 \
+  --partitions 3 --replication-factor 1 \
+  --topic chat-requests
+
+docker compose exec kafka kafka-topics \
+  --create --if-not-exists \
+  --bootstrap-server kafka:9092 \
+  --partitions 3 --replication-factor 1 \
+  --topic chat-responses
+
+## Manual testing
+## Run from 1st terminal
+docker compose run --rm --service-ports app-worker \
+  python -u -m app.websocket_service.main
+
+## Run from 2nd terminal
+
+docker compose run --rm \
+  -v "/Users/sameergherkal/E2E-LangGraph RAG Chatbot/E2E_Langraph_RAG_ChatBOT/app/configs/e2e-langragh-chatbot-510511-cb0dd6b38e63.json:/run/secrets/gcp.json:ro" \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp.json \
+  app-worker \
+  python -u -c "import asyncio; from app.router_service.request_response_router import RequestResponseRouter; asyncio.run(RequestResponseRouter().start())"
+
+
+## Run the entire project with:
+docker compose up -d
+## Run ingestion only, along with its Kafka, Elasticsearch, and Redis dependencies:
+docker compose up -d app-worker
+## Run the chat/retrieval flow only, along with its dependencies:
+docker compose up -d websocket retrieval-router
+## For routine restarts, use docker compose restart app-worker, docker compose restart websocket retrieval-router, or docker compose restart for everything. You don’t need --build unless the Dockerfile or dependencies changed.
+## Then connect Postman to
+ ws://localhost:8000/ws/test-session-001 
+ ## and send:
+{"message": "Hi, how are you?"}
 ---
 
 ## 💬 Interview Discussion Guide (How to explain this start)

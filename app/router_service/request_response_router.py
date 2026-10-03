@@ -3,7 +3,7 @@ import json
 import uuid
 from app.app_logger import LoggerFactory
 from confluent_kafka import Consumer, Producer
-from app.workflow.retrieval_worflow import *
+from app.workflow.retrieval_workflow import RetrievalWorkflow
 
 logger = LoggerFactory.get_logger(__name__)
 
@@ -18,6 +18,7 @@ class RequestResponseRouter:
         self.consumer.subscribe(['chat-requests'])
         self.semaphore = asyncio.Semaphore(max_concurrency)
         self.tasks = set()
+        self.retrieval_workflow = RetrievalWorkflow()
         # self.pending_requests:dict[str, asyncio.Future] = {}
 
     async def start(self):
@@ -36,14 +37,23 @@ class RequestResponseRouter:
 
                 # Process the request and generate a response
                 task = asyncio.create_task(
-                self._handle_request(request_data)
-            )
+                    self._handle_request(request_data)
+                )
 
                 self.tasks.add(task)
-                task.add_done_callback(self.tasks.discard)
+                task.add_done_callback(self._on_request_task_done)
 
             except Exception as e:
                 logger.error(f"Error receiving Kafka message: {e}")
+
+    def _on_request_task_done(self, task: asyncio.Task) -> None:
+        self.tasks.discard(task)
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            logger.exception("Request handler task failed")
 
     async def _handle_request(self, request_data: dict):
         async with self.semaphore:
@@ -75,20 +85,17 @@ class RequestResponseRouter:
             "session_id": session_id,
             "query_id": query_id,
             "user_id": user_id,
-            "message": user_message,
+            "query": user_message,
             }
 
-        # result = await retrieval_graph.ainvoke(graph_input)
-
-        # return {
-        #     "session_id": session_id,
-        #     "query_id": query_id,
-        #     "response": result["response"],
-        # }
-            
-
-
-
-        #     return {"response": request_data}
+        result = await self.retrieval_workflow.ainvoke(graph_input)
+        return {
+            "session_id": session_id,
+            "query_id": query_id,
+            "user_id": user_id,
+            "response": result.get("response", ""),
+            "intent": result.get("intent"),
+            "retrieved_chunks": result.get("retrieved_chunks", []),
+        }
 
     

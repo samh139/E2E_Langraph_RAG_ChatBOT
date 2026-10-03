@@ -14,7 +14,7 @@ sys.path.append(str(ROOT_DIR))
 
 from app.ingestion.minio_client import MinioStorageClient
 from app.workflow.ingestion_workflow import graph as IngestionLangGraph
-from app.workflow.state import IngestionState
+from app.workflow.ingestion_state import IngestionState
 from app.utils.kafka_delivery import produce_confirmed
 from app.workers.embed_worker import EmbedWorker
 from app.workers.indexer_worker import IndexerWorker

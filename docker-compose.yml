@@ -12,6 +12,8 @@ services:
     depends_on:
       kafka:
         condition: service_started
+      kafka-setup:
+        condition: service_completed_successfully
       elasticsearch:
         condition: service_healthy
       redis:
@@ -20,9 +22,54 @@ services:
       - ./app/configs/.env
     volumes:
       - ./:/workspace
+    command: ["python", "-m", "app.services.ingestion_service"]
+
+  # -----------------------------------------------------------------
+  # 1b. CHAT WEBSOCKET GATEWAY
+  # -----------------------------------------------------------------
+  websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      kafka-setup:
+        condition: service_completed_successfully
+    env_file:
+      - ./app/configs/.env
+    volumes:
+      - ./:/workspace
     ports:
       - "8000:8000"
-    command: ["python", "-m", "app.services.ingestion_service"]
+    command: ["python", "-u", "-m", "app.websocket_service.main"]
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------
+  # 1c. CHAT RETRIEVAL / LANGGRAPH ROUTER
+  # -----------------------------------------------------------------
+  retrieval-router:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      kafka-setup:
+        condition: service_completed_successfully
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./app/configs/.env
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp.json
+    volumes:
+      - ./:/workspace
+      - ./app/configs/e2e-langragh-chatbot-510511-cb0dd6b38e63.json:/run/secrets/gcp.json:ro
+    command:
+      - python
+      - -u
+      - -c
+      - "import asyncio; from app.router_service.request_response_router import RequestResponseRouter; asyncio.run(RequestResponseRouter().start())"
+    restart: unless-stopped
 
   # -----------------------------------------------------------------
   # 2. VECTOR DATABASE ENGINE
@@ -101,8 +148,8 @@ services:
       echo 'Creating production-grade topics...';
       kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic dsprawl.chunks;
       kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic dsprawl.embedded_chunks;
-      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat.requests;
-      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat.responses;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat-requests;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat-responses;
       
       echo 'All topics successfully provisioned!';
       " ]

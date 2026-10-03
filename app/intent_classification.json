@@ -1,0 +1,206 @@
+{
+  "lookup_knowledge": {
+    "node_type": "rag",
+    "intent_family": "knowledge_lookup",
+    "behavioral_family": "data_probe",
+    "default_scope": "knowledge",
+    "examples": [
+      "what is the leave policy",
+      "explain onboarding process",
+      "show me rules for reimbursement",
+      "find steps for performance review",
+      "explain the travel reimbursement rules",
+      "where can I find the policy document"
+    ],
+    "tags": ["kb", "policy", "procedure", "steps", "information"]
+  },
+
+  "lookup_knowledge_plus_reasoning": {
+    "node_type": "reasoning",
+    "intent_family": "knowledge_reasoning",
+    "behavioral_family": "analytical_reasoning",
+    "default_scope": "knowledge",
+    "examples": [
+      "am I eligible for paternity leave",
+      "compare resignation vs termination",
+      "should I inform HR or manager first",
+      "what happens if I don't submit documents",
+      "is it better to apply for leave or work from home",
+      "what will happen if I miss the deadline"
+    ],
+    "tags": ["kb", "analysis", "compare", "why", "eligibility", "reason"]
+  },
+
+  "task_execute": {
+    "node_type": "task",
+    "intent_family": "system_task",
+    "behavioral_family": "task_execution",
+    "default_scope": "system",
+    "examples": [
+      "update my address",
+      "change phone number",
+      "raise a ticket",
+      "apply for leave",
+      "help me submit documents",
+      "complete my onboarding tasks",
+      "apply for annual leave",
+      "book my time off"
+    ],
+    "tags": ["task", "action", "system", "update", "execute"]
+  },
+
+  "customer_insight": {
+    "node_type": "task",
+    "intent_family": "system_task",
+    "behavioral_family": "customer_insight",
+    "default_scope": "system",
+    "examples": [
+      "get details of customer",
+      "Check if olivia is policially exposed",
+      "get transactions done by customer",
+      "check if user is doing cash structuring or any other anti money laundering activities",
+      "do investigation on customer"
+      
+    ],
+    "tags": ["task", "action", "system", "update", "execute"]
+  },
+
+  "generic_query": {
+    "node_type": "generic",
+    "intent_family": "generic_query",
+    "behavioral_family": "clarification_request",
+    "default_scope": "contextual",
+    "examples": [
+      "how does this work",
+      "can you help me",
+      "I have a question",
+      "what should I do next",
+      "i’m not sure what to do",
+      "can you explain this",
+      "i need guidance"
+    ],
+    "tags": ["generic", "contextual", "query"]
+  },
+
+  "offtopic_query": {
+    "node_type": "generic",
+    "intent_family": "offtopic",
+    "behavioral_family": "neutral_smalltalk",
+    "default_scope": "none",
+    "examples": [
+      "tell me a joke",
+      "what's the weather today",
+      "what's your favourite movie",
+      "do you watch cricket",
+      "do you like music",
+      "say something funny"
+    ],
+    "tags": ["offtopic", "casual", "smalltalk"]
+  },
+
+  "greeting": {
+    "node_type": "generic",
+    "intent_family": "interaction_start",
+    "behavioral_family": "neutral_smalltalk",
+    "default_scope": "none",
+    "examples": [
+      "hi",
+      "hello",
+      "hey",
+      "good morning",
+      "good evening",
+      "good afternoon",
+      "hi there",
+      "hello there",
+      "hey buddy"
+    ],
+    "tags": ["greeting", "start", "interaction"]
+  },
+
+  "farewell": {
+    "node_type": "generic",
+    "intent_family": "interaction_end",
+    "behavioral_family": "neutral_smalltalk",
+    "default_scope": "none",
+    "examples": [
+      "bye",
+      "good night",
+      "see you",
+      "talk to you later",
+      "I have to go",
+      "catch you later",
+      "take care",
+      "bye bye"
+    ],
+    "tags": ["farewell", "end", "closing"]
+  },
+
+  "rapport_smalltalk": {
+    "node_type": "generic",
+    "intent_family": "rapport",
+    "behavioral_family": "neutral_smalltalk",
+    "default_scope": "none",
+    "examples": [
+      "how are you",
+      "how's it going",
+      "what's up",
+      "how have you been",
+      "how's your day",
+      "hope you're doing well",
+      "how's everything",
+      "how's life"
+    ],
+    "tags": ["smalltalk", "rapport", "casual"]
+  },
+
+  "gratitude_ack": {
+    "node_type": "generic",
+    "intent_family": "gratitude",
+    "behavioral_family": "neutral_smalltalk",
+    "default_scope": "none",
+    "examples": [
+      "thanks",
+      "thank you",
+      "appreciate it",
+      "thanks a lot",
+      "thanks for the help",
+      "really appreciate it",
+      "thank you so much"
+    ],
+    "tags": ["gratitude", "thanks"]
+  },
+
+  "apology_ack": {
+    "node_type": "generic",
+    "intent_family": "apology",
+    "behavioral_family": "neutral_smalltalk",
+    "default_scope": "none",
+    "examples": [
+      "sorry",
+      "sorry about that",
+      "my bad",
+      "i didn’t mean that",
+      "sorry for disturbing",
+      "apologies",
+      "oops sorry"
+    ],
+    "tags": ["apology", "acknowledge"]
+  },
+
+  "get_file_template": {
+    "node_type": "rag",
+    "intent_family": "template_lookup",
+    "behavioral_family": "data_probe",
+    "default_scope": "knowledge",
+    "examples": [
+      "share the template for resignation letter",
+      "give me the offer letter template",
+      "show me the onboarding form template",
+      "i need the leave application template",
+      "send me the travel reimbursement template",
+      "provide the performance review template"
+    ],
+    "tags": ["template", "document", "form", "kb", "file"]
+  }
+}
+ 

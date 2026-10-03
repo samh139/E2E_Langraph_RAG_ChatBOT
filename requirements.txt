@@ -15,5 +15,6 @@ ollama
 sentence-transformers
 pymongo
 uvicorn
+google-genai
 
 torch --index-url https://pytorch.org

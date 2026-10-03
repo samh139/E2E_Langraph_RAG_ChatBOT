@@ -14,11 +14,12 @@ WORKDIR /workspace
 COPY requirements.txt .
 
 # 5. Install all our AI and database client dependencies
-RUN pip install -r requirements.txt
+# FIX: Added BuildKit cache mounting to reuse downloaded wheels across builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
 # 6. Copy the rest of our application code into the workspace
 COPY . .
 
 # 7. Keep the container alive using a non-blocking placeholder loop
-# This allows us to execute and test scripts manually inside it later
 CMD ["tail", "-f", "/dev/null"]
