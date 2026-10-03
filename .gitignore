@@ -220,3 +220,4 @@ __marimo__/
 .DS_Store
 app/.DS_Store
 E2E-LangGraph-RAG-CHAT.postman_collection.json
+app/configs/e2e-langragh-chatbot-510511-cb0dd6b38e63.json
