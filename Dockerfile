@@ -18,6 +18,9 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
+## If you want to reinstall all packages
+# RUN pip install -r requirements.txt
+
 # 6. Copy the rest of our application code into the workspace
 COPY . .
 

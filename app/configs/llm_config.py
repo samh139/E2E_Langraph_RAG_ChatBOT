@@ -37,13 +37,13 @@ def load_intent_taxonomy() -> dict:
         print(f"Warning: Failed to load intent taxonomy file: {e}")
         return {}
 
-def ask_gemini_structured(system_prompt: str, user_prompt: str, response_schema: Any) -> Dict[str, Any]:
+async def ask_gemini_structured(system_prompt: str, user_prompt: str, response_schema: Any) -> Dict[str, Any]:
     """
     Sends a request to Google Gemini forcing a structured JSON output 
     matching the provided Pydantic schema.
     """
     try:
-        response = _client.models.generate_content(
+        response = await _client.models.generate_content(
             model=GEMINI_MODEL,
             contents=user_prompt,
             config=types.GenerateContentConfig(
@@ -58,3 +58,28 @@ def ask_gemini_structured(system_prompt: str, user_prompt: str, response_schema:
         print(f"Gemini API Error: {e}")
         # Return fallback values if the API crashes
         return {"intent": "generic_query", "confidence": 0.0, "reasoning": "Fallback due to API error"}
+
+async def fire_fast_modal_request_chat(
+    system_prompt: str,
+    user_prompt: str,
+    model: str = GEMINI_MODEL,
+) -> str:
+    """
+    Send a normal text request to Gemini Flash and return plain text.
+    """
+
+    try:
+        response = await _client.models.generate_content(
+            model=model,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.1,
+            ),
+        )
+
+        return response.text.strip()
+
+    except Exception as e:
+        print(f"Gemini API Error: {e}")
+        return ""

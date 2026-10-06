@@ -218,11 +218,15 @@ services:
   # 5. STATE STATEFUL CHECKPOINT MEMORY
   # -----------------------------------------------------------------
   redis:
-    image: redis:7.4.11-alpine
+    # 🎯 FIX: Changed from vanilla alpine to redis-stack-server to include RedisJSON & RediSearch modules
+    image: redis/redis-stack-server
     container_name: redis
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # 🎯 FIX: Enabled appendonly for durable STM checkpoints and attached a named volume
+    command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -240,4 +244,5 @@ services:
 volumes:
   esdata:
   miniodata:
-  mongodata:
+  redisdata: # 🎯 FIX: Added persistent target volume boundary for local stm assets
+

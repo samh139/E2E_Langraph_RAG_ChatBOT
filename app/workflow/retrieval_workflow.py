@@ -18,7 +18,7 @@ from app.workflow.retrieval_state import RetrieverState
 # ✅ Import your new Gemini-powered classification agent code here
 from app.agents.retrieval_agents.classifier_agent import ClassifierAgent 
 from app.agents.retrieval_agents.greeting_agent import GreetingAgent
-
+from app.agents.retrieval_agents.query_refiner_agent import QueryRefinerAgent
 
 class RetrievalWorkflow:
     """Build and run the classifier → refine → knowledge → retrieval graph."""
@@ -92,8 +92,13 @@ class RetrievalWorkflow:
         agent = GreetingAgent(payload=state)
         return agent.execute()
 
-    def query_refiner_agent(self, state: RetrieverState) -> dict[str, Any]:
-        return {"refined_query": state.query}
+    async def query_refiner_agent(self, state: RetrieverState) -> dict[str, Any]:
+        """
+        Pure orchestration stub. LangGraph triggers this, 
+        the agent runs its logic, and returns the patch state.
+        """
+        agent = QueryRefinerAgent(payload=state)
+        return await agent.execute() 
 
     async def knowledge_agent(self, state: RetrieverState) -> dict[str, Any]:
         return {}

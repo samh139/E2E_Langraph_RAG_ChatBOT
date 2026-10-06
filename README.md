@@ -90,7 +90,12 @@ python3 -m venv rag_chat_env
 source rag_chat_env/bin/activate  # On Windows use: rag_chat_env\Scripts\activate
 
 # 3. Install core production runtime dependencies
-pip install -r requirements.txt
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
+
+## If you want to reinstall all packages
+#pip install -r requirements.txt
 
 # 4. Run the docker image-
 docker compose up -d --build

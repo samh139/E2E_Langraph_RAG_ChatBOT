@@ -4,6 +4,10 @@ import uuid
 from app.app_logger import LoggerFactory
 from confluent_kafka import Consumer, Producer
 from app.workflow.retrieval_workflow import RetrievalWorkflow
+from app.memory_service.memory_team.ltm.ltm_service import store_conversation_to_es
+from app.memory_service.memory_team.stm.agent import (
+    update_session_stm
+)
 
 logger = LoggerFactory.get_logger(__name__)
 
@@ -89,6 +93,21 @@ class RequestResponseRouter:
             }
 
         result = await self.retrieval_workflow.ainvoke(graph_input)
+
+        bot_response = result.get("response")
+
+        await store_conversation_to_es(
+            user_id=user_id,
+            session_id=session_id,
+            user_message=user_message,
+            bot_response=bot_response,
+        )
+        await update_session_stm(
+            user_id=user_id,
+            session_id=session_id,
+            user_message=user_message,
+            bot_response=bot_response,
+        )
         return {
             "session_id": session_id,
             "query_id": query_id,
