@@ -15,6 +15,48 @@ DEVICE = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.i
 print(f"[*] Cluster Summarizer Embedding Engine initialized on: {DEVICE.upper()}")
 EMBEDDING_MODEL = SentenceTransformer("BAAI/bge-small-en-v1.5", device=DEVICE)
 
+async def create_index_if_not_exists() -> None:
+    """Create the LTM conversation index with fields used by lexical and KNN retrieval."""
+    if await es.indices.exists(index=es_ltm_index):
+        return
+
+    embedding_dims = EMBEDDING_MODEL.get_embedding_dimension()
+    mappings = {
+        "properties": {
+            "user_id": {"type": "keyword"},
+            "session_id": {"type": "keyword"},
+            "user_message": {"type": "text"},
+            "bot_response": {"type": "text"},
+            "user_embedding": {
+                "type": "dense_vector",
+                "dims": embedding_dims,
+                "index": False,
+            },
+            "bot_embedding": {
+                "type": "dense_vector",
+                "dims": embedding_dims,
+                "index": False,
+            },
+            "combined_embedding": {
+                "type": "dense_vector",
+                "dims": embedding_dims,
+                "index": True,
+                "similarity": "cosine",
+            },
+            "timestamp": {"type": "date"},
+        }
+    }
+
+    try:
+        await es.indices.create(index=es_ltm_index, mappings=mappings)
+        print(f"Created Elasticsearch index '{es_ltm_index}'.")
+    except Exception:
+        # Another request may have created it after the exists check.
+        if await es.indices.exists(index=es_ltm_index):
+            return
+        raise
+
+
 
 def normalize_scores(items: List[Dict], score_key: str) -> None:
     """
@@ -37,6 +79,7 @@ def normalize_scores(items: List[Dict], score_key: str) -> None:
 
 async def store_conversation_to_es(user_id: str, session_id: str, user_message: str, bot_response: str) -> str:
     print("Storing conversation to ES...")
+    await create_index_if_not_exists()
     
     # 1. Offload heavy CPU/GPU embedding computations to background threads
     user_emb_tensor = await asyncio.to_thread(EMBEDDING_MODEL.encode, user_message)
@@ -83,7 +126,7 @@ def _parse_ltm_hits(hits: list[dict], score_key: str = "semantic_score") -> list
         })
     return candidates
 
-def fetch_from_ltm( query: str, user_id: str, session_id: str, top_k: int = 10) -> list[dict]:
+async def fetch_from_ltm( query: str, user_id: str, session_id: str, top_k: int = 10) -> list[dict]:
     request_body = {
         "query": {
             "bool": {
@@ -100,10 +143,10 @@ def fetch_from_ltm( query: str, user_id: str, session_id: str, top_k: int = 10) 
         "_source": {"excludes": ["user_embedding", "bot_embedding", "combined_embedding"]}
     }
 
-    res = es.search(index=es_ltm_index, body=request_body)
+    res = await es.search(index=es_ltm_index, body=request_body)
     return _parse_ltm_hits(res["hits"]["hits"], score_key="bm_score")
 
-def fetch_knn_from_ltm( query: str, user_id: str, session_id: str, top_k: int = 10) -> list[dict]:
+async def fetch_knn_from_ltm( query: str, user_id: str, session_id: str, top_k: int = 10) -> list[dict]:
     # Updated: Replaced ollama with EMBEDDING_MODEL.encode().tolist()
     query_vec = EMBEDDING_MODEL.encode(query).tolist()
     
@@ -122,7 +165,7 @@ def fetch_knn_from_ltm( query: str, user_id: str, session_id: str, top_k: int = 
         "_source": {"excludes": ["user_embedding", "bot_embedding", "combined_embedding"]}
     }
 
-    res = es.search(index=es_ltm_index, body=request_body)
+    res = await es.search(index=es_ltm_index, body=request_body)
     candidates = _parse_ltm_hits(res["hits"]["hits"], score_key="semantic_score")
     print(f"KNN candidates before filtering: {len(candidates)}")
     # Filter based on raw semantic score threshold before normalization
@@ -160,17 +203,18 @@ def rrf_fuse_ltm(bm25_list: list[dict], knn_list: list[dict], k: int = 60) -> li
     fused_candidates.sort(key=lambda x: x["rrf_score"], reverse=True)
     return fused_candidates
 
-def retrieve_ltm_context( query: str, session_id: str, user_id: str ="12345",
+async def retrieve_ltm_context( query: str, session_id: str, user_id: str ="12345",
                         top_k_bm25: int = 10, top_k_knn: int = 10, top_n: int = 3) -> list[dict]:
     print("Retrieving LTM context...")
+    await create_index_if_not_exists()
     
     # Step 1: Fetch BM25 candidates
-    bm25_candidates = fetch_from_ltm(query, user_id, session_id, top_k=top_k_bm25)
+    bm25_candidates = await fetch_from_ltm(query, user_id, session_id, top_k=top_k_bm25)
     normalize_scores(bm25_candidates, "bm_score")
     bm25_candidates.sort(key=lambda x: x["bm_score"], reverse=True)
 
     # Step 2: Fetch KNN candidates
-    knn_candidates = fetch_knn_from_ltm(query, user_id, session_id, top_k=top_k_knn)
+    knn_candidates = await fetch_knn_from_ltm(query, user_id, session_id, top_k=top_k_knn)
     normalize_scores(knn_candidates, "semantic_score")
     knn_candidates.sort(key=lambda x: x["semantic_score"], reverse=True)
 

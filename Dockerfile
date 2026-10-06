@@ -10,19 +10,27 @@ RUN apt-get update && apt-get install -y \
 # 3. Set the working directory inside the container sandbox
 WORKDIR /workspace
 
-# 4. Copy the requirements file first to take advantage of Docker layer caching
+# 4. Install CPU-only PyTorch in its own layer. This app runs in a container
+#    without CUDA; pinning the CPU wheel prevents pip from adding NVIDIA/CUDA
+#    runtime packages. Keep this separate so changes to app requirements do
+#    not force PyTorch to be resolved and downloaded again.
+RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
+    pip install --index-url https://download.pytorch.org/whl/cpu \
+      torch==2.13.0+cpu
+
+# 5. Copy requirements separately so Docker can reuse the dependency layer
+#    whenever requirements.txt has not changed.
 COPY requirements.txt .
 
-# 5. Install all our AI and database client dependencies
-# FIX: Added BuildKit cache mounting to reuse downloaded wheels across builds
-RUN --mount=type=cache,target=/root/.cache/pip \
+# 6. Install app dependencies. The pip cache is shared with the PyTorch step.
+RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
 ## If you want to reinstall all packages
 # RUN pip install -r requirements.txt
 
-# 6. Copy the rest of our application code into the workspace
+# 7. Copy the rest of our application code into the workspace
 COPY . .
 
-# 7. Keep the container alive using a non-blocking placeholder loop
+# 8. Keep the container alive using a non-blocking placeholder loop
 CMD ["tail", "-f", "/dev/null"]

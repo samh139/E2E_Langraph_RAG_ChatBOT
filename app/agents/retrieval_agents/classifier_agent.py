@@ -37,27 +37,27 @@ INSTRUCTIONS:
 3. If no key clearly matches, fallback to 'generic_query'.
 """
 
-    def _detect_intent(self, query: str) -> dict[str, Any]:
+    async def _detect_intent(self, query: str) -> dict[str, Any]:
         """Call Gemini using the structured response wrapper."""
         system_prompt = self._build_system_prompt()
         user_prompt = f"User Message to Classify: '{query}'"
         
         # Invoke Gemini with schema verification
-        result = ask_gemini_structured(
+        result = await ask_gemini_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             response_schema=IntentClassification
         )
         return result
 
-    def execute(self) -> dict[str, Any]:
+    async def execute(self) -> dict[str, Any]:
         """Return a precise state patch suitable for downstream LangGraph nodes."""
         if isinstance(self.payload, RetrieverState):
             state = self.payload
             query = state.query.strip()
             
             # Identify structured intent payload via Gemini
-            classification = self._detect_intent(query)
+            classification = await self._detect_intent(query)
             
             return {
                 "session_id": state.session_id,

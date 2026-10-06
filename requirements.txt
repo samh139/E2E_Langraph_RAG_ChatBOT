@@ -17,5 +17,4 @@ pymongo
 uvicorn
 google-genai
 langgraph-checkpoint-redis
-
-torch --index-url https://pytorch.org
+elasticsearch[async]

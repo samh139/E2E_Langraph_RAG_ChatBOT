@@ -49,8 +49,9 @@ class QueryRefinerAgent:
 
         IMPORTANT PRINCIPLES:
 
-        1. BE CONSERVATIVE.
-        Do not rewrite a query merely to make it sound more formal or complete.
+        1. SYNTACTIC NORMALIZATION IS ALLOWED.
+        If a query is a collection of jumbled keywords or fragmented phrases (e.g., "NEFT fees for SBI Bank what is"),
+          smooth it out into a clean, natural search query (e.g., "What are the NEFT fees for SBI Bank?")..
 
         2. PRESERVE THE ORIGINAL MEANING.
         Never introduce facts, entities, products, organizations, locations,
@@ -185,7 +186,8 @@ If the memory is insufficient to resolve an ambiguous reference, do not guess.
         )
 
         # 4. Fallback safeguard verification
-        refined_query = (result.get("refined_query") or query).strip()
+        refined_query = (result.get("refined_query")).strip()
+        print(f"Refined Query: {refined_query}, Should Refine: {result.get('should_refine')}, Reason: {result.get('reason')}")
         if not refined_query:
             refined_query = query
 

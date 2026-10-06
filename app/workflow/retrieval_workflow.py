@@ -56,10 +56,10 @@ class RetrievalWorkflow:
         self.compiled_graph = workflow.compile()
 
     @staticmethod
-    def classifier_agent(state: RetrieverState) -> dict[str, Any]:
+    async def classifier_agent(state: RetrieverState) -> dict[str, Any]:
         """✅ UPDATED: Invokes the Gemini ClassifierAgent to populate the state patch dynamically."""
         agent = ClassifierAgent(payload=state)
-        return agent.execute()
+        return await agent.execute()
 
     @staticmethod
     def route_intent(state: RetrieverState) -> str:
@@ -88,9 +88,9 @@ class RetrievalWorkflow:
         return "knowledge_stream"
 
     # Ensure your remaining structural node stubs stay declared below...
-    def greeting_agent(self, state: RetrieverState) -> dict[str, Any]:
+    async def greeting_agent(self, state: RetrieverState) -> dict[str, Any]:
         agent = GreetingAgent(payload=state)
-        return agent.execute()
+        return await agent.execute()
 
     async def query_refiner_agent(self, state: RetrieverState) -> dict[str, Any]:
         """

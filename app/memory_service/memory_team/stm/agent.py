@@ -1,3 +1,5 @@
+import json
+
 from app.configs.llm_config import (
     fire_fast_modal_request_chat
 )
@@ -85,14 +87,29 @@ Remember that the updated summary must represent the ENTIRE session.
 """
 
     updated_stm_text = await fire_fast_modal_request_chat(
-    system_prompt=STM_SYSTEM_PROMPT,
-    user_prompt=user_prompt,
-)
+        system_prompt=STM_SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+    )
 
-    # Store the new cumulative STM summary.
-    updated_stm = {
-        "summary": updated_stm_text,
-    }
+    # Persist the fields consumed by get_stm_summary on subsequent requests.
+    try:
+        updated_stm = json.loads(updated_stm_text)
+        if not isinstance(updated_stm, dict):
+            raise ValueError("STM response must be a JSON object")
+    except (json.JSONDecodeError, TypeError, ValueError):
+        updated_stm = previous_stm.copy()
+
+    updated_stm.update(
+        {
+            "topic": updated_stm.get("topic", previous_stm.get("topic", "")),
+            "context_summary": updated_stm.get(
+                "context_summary", previous_stm.get("context_summary", "")
+            ),
+            "entities": updated_stm.get("entities", previous_stm.get("entities", [])),
+            "last_user_message": user_message,
+            "last_bot_message": bot_response,
+        }
+    )
 
     await save_stm(
         session_id=session_id,
@@ -105,7 +122,7 @@ Remember that the updated summary must represent the ENTIRE session.
     await add_conversation(
         session_id=session_id,
         user_message=user_message,
-        bot_response=bot_response,
+        bot_message=bot_response,
         user_id=user_id,
     )
 

@@ -60,10 +60,15 @@ services:
     env_file:
       - ./app/configs/.env
     environment:
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp.json
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-credentials.json
     volumes:
       - ./:/workspace
-      - ./app/configs/e2e-langragh-chatbot-510511-cb0dd6b38e63.json:/run/secrets/gcp.json:ro
+      - type: bind
+        source: ./app/configs/e2e-langragh-chatbot-510511-cb0dd6b38e63.json
+        target: /run/secrets/google-credentials.json
+        read_only: true
+        bind:
+          create_host_path: false
     command:
       - python
       - -u
@@ -222,7 +227,7 @@ services:
     image: redis/redis-stack-server
     container_name: redis
     # 🎯 FIX: Enabled appendonly for durable STM checkpoints and attached a named volume
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--protected-mode", "no"]
     ports:
       - "6379:6379"
     volumes:
@@ -245,4 +250,3 @@ volumes:
   esdata:
   miniodata:
   redisdata: # 🎯 FIX: Added persistent target volume boundary for local stm assets
-

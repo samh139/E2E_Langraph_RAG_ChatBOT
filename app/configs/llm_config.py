@@ -43,7 +43,7 @@ async def ask_gemini_structured(system_prompt: str, user_prompt: str, response_s
     matching the provided Pydantic schema.
     """
     try:
-        response = await _client.models.generate_content(
+        response = await _client.aio.models.generate_content(
             model=GEMINI_MODEL,
             contents=user_prompt,
             config=types.GenerateContentConfig(
@@ -69,7 +69,7 @@ async def fire_fast_modal_request_chat(
     """
 
     try:
-        response = await _client.models.generate_content(
+        response = await _client.aio.models.generate_content(
             model=model,
             contents=user_prompt,
             config=types.GenerateContentConfig(

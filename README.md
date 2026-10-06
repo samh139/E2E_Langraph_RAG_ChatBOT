@@ -145,7 +145,10 @@ docker compose up -d
 ## Run ingestion only, along with its Kafka, Elasticsearch, and Redis dependencies:
 docker compose up -d app-worker
 ## Run the chat/retrieval flow only, along with its dependencies:
-docker compose up -d websocket retrieval-router
+## 1st terminal
+docker compose up websocket 
+## 2nd terminal
+docker compose up retrieval-router
 ## For routine restarts, use docker compose restart app-worker, docker compose restart websocket retrieval-router, or docker compose restart for everything. You don’t need --build unless the Dockerfile or dependencies changed.
 ## Then connect Postman to
  ws://localhost:8000/ws/test-session-001 
