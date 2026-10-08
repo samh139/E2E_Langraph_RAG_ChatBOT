@@ -6,29 +6,36 @@ import json
 from confluent_kafka import Consumer, KafkaError
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
+from app.utils.alias_manager import AliasManager
 
 load_dotenv(Path(__file__).resolve().parents[1] / "configs" / ".env")
 
 class IndexerWorker:
-    def __init__(self, kafka_bootstrap=None):
+    def __init__(self, kafka_bootstrap=None, target_index=None):
         # Synchronized bootstrap mapping across all components
         self.kafka_bootstrap = (kafka_bootstrap or os.getenv("KAFKA_BOOTSTRAP")
                                 or os.getenv("KAFKA_BOOTSTRAP_SERVERS")
                                 or os.getenv("KAFKA_BOOTSTRAP_LOCALHOST")
                                 or "127.0.0.1:9094")
-        self.input_topic = os.getenv("KAFKA_EMBEDDED_TOPIC", "dsprawl.embedded_chunks")
+        self.input_topic = os.getenv("KAFKA_EMBEDDED_TOPIC", "es.embedded_chunks")
 
         es_host = os.getenv("ES_HOST", "http://elasticsearch:9200")
         es_password = os.getenv("ES_PASSWORD") # 🎯 Grab our 9.x credential string
-
-        # Enforce a guaranteed string fallback and clean empty env spaces
-        env_index = os.getenv("ES_INDEX_NAME", "").strip()
-        self.index_name = env_index if env_index else "es_documents"
 
         es_options = {}
         if es_password:
             es_options["basic_auth"] = (os.getenv("ES_USERNAME", "elastic"), es_password)
         self.es = Elasticsearch(es_host, **es_options)
+        self.alias_manager = AliasManager(es=self.es)
+        self.target_index = target_index
+
+        if target_index:
+            self.index_name = target_index
+            if not self.es.indices.exists(index=target_index):
+                self.alias_manager.create_index(target_index)
+        else:
+            self.index_name = self.alias_manager.alias
+            self.alias_manager.ensure_live_alias()
 
         # Kafka consumer setup
         self.consumer = Consumer({
@@ -38,45 +45,7 @@ class IndexerWorker:
             "enable.auto.commit": False
         })
 
-        self.create_index_if_not_exists()
-
-    def create_index_if_not_exists(self):
-        # ✅ Fixed Indentation: Now properly nested directly under the class scope
-        if not self.index_name or not isinstance(self.index_name, str):
-            self.index_name = "es_documents"
-
-        try:
-            if self.es.indices.exists(index=self.index_name):
-                print(f"[✓] Elasticsearch index '{self.index_name}' already exists.")
-                return
-
-            print(f"[*] Creating Elasticsearch index '{self.index_name}' with modern 9.x structures...")
-
-            # Properties structure floats cleanly at the top-level under the mappings keyword parameter
-            target_mappings = {
-                "properties": {
-                    "chunk_id": {"type": "keyword"},
-                    "doc_id": {"type": "keyword"},
-                    "file_name": {"type": "keyword"},
-                    "file_type": {"type": "keyword"},
-                    "content": {"type": "text"},
-                    "content_hash": {"type": "keyword"},
-                    "created_at": {"type": "date"},
-                    "embedding_vector": {
-                        "type": "dense_vector",
-                        "dims": 384,
-                        "index": True,
-                        "similarity": "cosine"
-                    }
-                }
-            }
-
-            # Explicit named call mapping to fit the new SDK interface specification
-            self.es.indices.create(index=self.index_name, mappings=target_mappings)
-            print(f"[✓] Elasticsearch index '{self.index_name}' successfully initialized.")
-        except Exception as e:
-            print(f"[X] Index verification failed against target '{self.index_name}': {repr(e)}")
-            raise e
+        print(f"[*] Elasticsearch write target: {self.index_name}")
 
     def index_chunk(self, chunk):
         embedding = chunk.get("embedding_vector")
@@ -99,6 +68,7 @@ class IndexerWorker:
         self.consumer.subscribe([self.input_topic])
         print(f"[*] IndexerWorker listening on '{self.input_topic}'...")
 
+        indexed_count = 0
         try:
             empty_polls = 0
             while empty_polls < 40:
@@ -117,6 +87,7 @@ class IndexerWorker:
                     chunk = json.loads(msg.value().decode("utf-8"))
                     self.index_chunk(chunk)
                     self.consumer.commit(msg, asynchronous=False)
+                    indexed_count += 1
                     #print(f"[✓] Indexed chunk: {chunk['chunk_id']} | Source: {chunk.get('file_name')}")
                 except Exception as e:
                     print(f"[X] Indexing failed: {repr(e)}")
@@ -126,6 +97,7 @@ class IndexerWorker:
             self.consumer.close()
             self.es.close()
         print("[*] IndexerWorker finished.")
+        return indexed_count
 
 if __name__ == "__main__":
     worker = IndexerWorker()

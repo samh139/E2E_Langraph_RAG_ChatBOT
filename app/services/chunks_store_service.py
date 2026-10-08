@@ -15,7 +15,7 @@ load_dotenv("app/config/secrets.env")
 #KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9092")
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP") or os.getenv("KAFKA_BOOTSTRAP_LOCALHOST")
 
-CHUNKS_TOPIC = os.getenv("KAFKA_CHUNKS_TOPIC", "dsprawl.chunks")
+CHUNKS_TOPIC = os.getenv("KAFKA_CHUNKS_TOPIC", "es.chunks")
 
 producer = KafkaProducer(
     bootstrap_servers=[KAFKA_BOOTSTRAP],

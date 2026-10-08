@@ -67,8 +67,8 @@ docker exec -it kafka kafka-topics --list --bootstrap-server localhost:9092
 ```text
 chat-requests
 chat-responses
-dsprawl.chunks
-dsprawl.embedded_chunks
+es.chunks
+es.embedded_chunks
 ```
 
 ### B. Verify Object Storage Buckets (MinIO)

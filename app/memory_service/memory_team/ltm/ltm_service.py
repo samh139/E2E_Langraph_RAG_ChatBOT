@@ -1,26 +1,58 @@
 # store_ltm.py
 from datetime import datetime
+import os
+from pathlib import Path
+
 from elasticsearch import AsyncElasticsearch 
-from sentence_transformers import SentenceTransformer
+import ollama
 from typing import List, Dict
-import numpy as np
-import asyncio
-import torch
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[3] / "configs" / ".env")
 
 es_host="http://elasticsearch:9200"
 es_ltm_index="conversations"
 es = AsyncElasticsearch(es_host)
 
-DEVICE = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
-print(f"[*] Cluster Summarizer Embedding Engine initialized on: {DEVICE.upper()}")
-EMBEDDING_MODEL = SentenceTransformer("BAAI/bge-small-en-v1.5", device=DEVICE)
+EMBEDDING_MODEL_NAME = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+EMBEDDING_DIMS = 768
+OLLAMA_URL = os.getenv(
+    "OLLAMA_URL", os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
+)
+EMBEDDING_CLIENT = ollama.AsyncClient(
+    host=OLLAMA_URL,
+    timeout=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180")),
+)
+print(
+    f"[*] LTM embedding client configured: {EMBEDDING_MODEL_NAME} "
+    f"({EMBEDDING_DIMS} dimensions) at {OLLAMA_URL}"
+)
+
+
+async def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Embed texts with the same Ollama model used for indexed documents."""
+    if not texts:
+        return []
+
+    response = await EMBEDDING_CLIENT.embed(model=EMBEDDING_MODEL_NAME, input=texts)
+    embeddings = [list(vector) for vector in response.embeddings]
+    if len(embeddings) != len(texts):
+        raise RuntimeError(
+            f"Ollama returned {len(embeddings)} vectors for {len(texts)} input texts"
+        )
+    for index, vector in enumerate(embeddings):
+        if len(vector) != EMBEDDING_DIMS:
+            raise RuntimeError(
+                f"Ollama model {EMBEDDING_MODEL_NAME!r} returned vector {index} "
+                f"with {len(vector)} dimensions; expected {EMBEDDING_DIMS}"
+            )
+    return embeddings
 
 async def create_index_if_not_exists() -> None:
     """Create the LTM conversation index with fields used by lexical and KNN retrieval."""
     if await es.indices.exists(index=es_ltm_index):
         return
 
-    embedding_dims = EMBEDDING_MODEL.get_embedding_dimension()
     mappings = {
         "properties": {
             "user_id": {"type": "keyword"},
@@ -29,17 +61,17 @@ async def create_index_if_not_exists() -> None:
             "bot_response": {"type": "text"},
             "user_embedding": {
                 "type": "dense_vector",
-                "dims": embedding_dims,
+                "dims": EMBEDDING_DIMS,
                 "index": False,
             },
             "bot_embedding": {
                 "type": "dense_vector",
-                "dims": embedding_dims,
+                "dims": EMBEDDING_DIMS,
                 "index": False,
             },
             "combined_embedding": {
                 "type": "dense_vector",
-                "dims": embedding_dims,
+                "dims": EMBEDDING_DIMS,
                 "index": True,
                 "similarity": "cosine",
             },
@@ -81,16 +113,10 @@ async def store_conversation_to_es(user_id: str, session_id: str, user_message: 
     print("Storing conversation to ES...")
     await create_index_if_not_exists()
     
-    # 1. Offload heavy CPU/GPU embedding computations to background threads
-    user_emb_tensor = await asyncio.to_thread(EMBEDDING_MODEL.encode, user_message)
-    user_emb = user_emb_tensor.tolist()
-    
-    bot_emb_tensor = await asyncio.to_thread(EMBEDDING_MODEL.encode, bot_response)
-    bot_emb = bot_emb_tensor.tolist()
-    
     combined_text = f"{user_message} {bot_response}"
-    combined_emb_tensor = await asyncio.to_thread(EMBEDDING_MODEL.encode, combined_text)
-    combined_emb = combined_emb_tensor.tolist()
+    user_emb, bot_emb, combined_emb = await embed_texts(
+        [user_message, bot_response, combined_text]
+    )
 
     doc = {
         "user_id": user_id,
@@ -147,8 +173,7 @@ async def fetch_from_ltm( query: str, user_id: str, session_id: str, top_k: int 
     return _parse_ltm_hits(res["hits"]["hits"], score_key="bm_score")
 
 async def fetch_knn_from_ltm( query: str, user_id: str, session_id: str, top_k: int = 10) -> list[dict]:
-    # Updated: Replaced ollama with EMBEDDING_MODEL.encode().tolist()
-    query_vec = EMBEDDING_MODEL.encode(query).tolist()
+    query_vec = (await embed_texts([query]))[0]
     
     request_body = {
         "size": top_k,

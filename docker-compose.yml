@@ -20,6 +20,10 @@ services:
         condition: service_healthy
     env_file:
       - ./app/configs/.env
+    environment:
+      # Keep `docker compose up` safe by default. Set INGESTION_DRY_RUN=false
+      # explicitly when you intend to write data and swap the live ES alias.
+      INGESTION_DRY_RUN: "true"
     volumes:
       - ./:/workspace
     command: ["python", "-m", "app.services.ingestion_service"]
@@ -151,8 +155,8 @@ services:
       cub kafka-ready -b kafka:9092 1 30;
       
       echo 'Creating production-grade topics...';
-      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic dsprawl.chunks;
-      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic dsprawl.embedded_chunks;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic es.chunks;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic es.embedded_chunks;
       kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat-requests;
       kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat-responses;
       
