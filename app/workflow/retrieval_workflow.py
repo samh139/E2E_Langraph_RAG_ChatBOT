@@ -1,110 +1,96 @@
-"""LangGraph workflow for routing chat requests through retrieval.
+"""Route small talk directly; retrieve, gate, and synthesize knowledge queries."""
 
-The graph keeps integrations injectable: an application can supply a retrieval
-callable and memory loader, while the default retrieval node queries the
-project's Elasticsearch chunk index using a lexical ``match`` query.
-"""
+from __future__ import annotations
 
-import asyncio
-import os
-import re
-import time
-from collections.abc import Callable, Mapping
 from typing import Any
 
 from langgraph.graph import END, StateGraph
 
-from app.workflow.retrieval_state import RetrieverState
-# ✅ Import your new Gemini-powered classification agent code here
-from app.agents.retrieval_agents.classifier_agent import ClassifierAgent 
-from app.agents.retrieval_agents.greeting_agent import GreetingAgent
+from app.agents.retrieval_agents.classifier_agent import ClassifierAgent
+from app.agents.retrieval_agents.small_talk_agent import SmallTalkAgent
 from app.agents.retrieval_agents.query_refiner_agent import QueryRefinerAgent
+from app.agents.retrieval_agents.retrieval_agent import RetrievalAgent
+from app.agents.retrieval_agents.synthesizer_agent import SynthesizerAgent
+from app.workflow.retrieval_state import RetrieverState
+
 
 class RetrievalWorkflow:
-    """Build and run the classifier → refine → knowledge → retrieval graph."""
+    """Classifier → small talk, or refiner → hybrid retrieval → answer/fallback."""
 
-    def __init__(
-        self,
-        top_k: int = 5,
-    ) -> None:
+    def __init__(self, top_k: int = 5) -> None:
         self.top_k = top_k
         workflow = StateGraph(RetrieverState)
 
-        # 1. Maintain your primary agent node bindings
         workflow.add_node("classifier_agent", self.classifier_agent)
-        workflow.add_node("greeting", self.greeting_agent)
+        workflow.add_node("small_talk_agent", self.small_talk_agent)
         workflow.add_node("query_refiner", self.query_refiner_agent)
-        workflow.add_node("knowledge_agent", self.knowledge_agent)
-        workflow.add_node("retrieval", self.retrieval_agent)
+        workflow.add_node("retrieval_agent", self.retrieval_agent)
+        workflow.add_node("synthesizer_agent", self.synthesizer_agent)
 
         workflow.set_entry_point("classifier_agent")
-        
-        # 2. ✅ UPDATED: The routing map directs the 12 granular intents cleanly
-        # into your two primary downstream execution branches
         workflow.add_conditional_edges(
             "classifier_agent",
             self.route_intent,
             {
-                "small_talk_stream": "greeting", 
-                "knowledge_stream": "query_refiner"
+                "small_talk": "small_talk_agent",
+                "knowledge": "query_refiner",
             },
         )
-        workflow.add_edge("greeting", END)
-        workflow.add_edge("query_refiner", "knowledge_agent")
-        workflow.add_edge("knowledge_agent", "retrieval")
-        workflow.add_edge("retrieval", END)
+        workflow.add_edge("small_talk_agent", END)
+        workflow.add_edge("query_refiner", "retrieval_agent")
+        workflow.add_conditional_edges(
+            "retrieval_agent",
+            self.route_retrieval,
+            {
+                "answer": "synthesizer_agent",
+                "fallback": "small_talk_agent",
+            },
+        )
+        workflow.add_edge("synthesizer_agent", END)
         self.compiled_graph = workflow.compile()
 
     @staticmethod
     async def classifier_agent(state: RetrieverState) -> dict[str, Any]:
-        """✅ UPDATED: Invokes the Gemini ClassifierAgent to populate the state patch dynamically."""
-        agent = ClassifierAgent(payload=state)
-        return await agent.execute()
+        validated_state = RetrieverState.model_validate(state)
+        return await ClassifierAgent(payload=validated_state).execute()
 
     @staticmethod
     def route_intent(state: RetrieverState) -> str:
-        """✅ UPDATED: Groups the 12 semantic taxonomy intents into high-level graph streams."""
+        state = RetrieverState.model_validate(state)
+        intent = state.intent
         small_talk_intents = {
-            "greeting", 
-            "farewell", 
-            "rapport_smalltalk", 
-            "gratitude_ack", 
-            "apology_ack", 
-            "offtopic_query"
+            "greeting",
+            "farewell",
+            "rapport_smalltalk",
+            "gratitude_ack",
+            "apology_ack",
+            "offtopic_query",
         }
-        
-        knowledge_intents = {
-            "lookup_knowledge", 
-            "lookup_knowledge_plus_reasoning", 
-            "get_file_template", 
-            "task_execute",      # Map execution to refiner/knowledge stream for RAG injection
-            "customer_insight",  # Map insight queries to refiner/knowledge stream for context building
-            "generic_query"
-        }
-        
-        if state.intent in small_talk_intents:
-            return "small_talk_stream"
-            
-        return "knowledge_stream"
+        return "small_talk" if intent in small_talk_intents else "knowledge"
 
-    # Ensure your remaining structural node stubs stay declared below...
-    async def greeting_agent(self, state: RetrieverState) -> dict[str, Any]:
-        agent = GreetingAgent(payload=state)
-        return await agent.execute()
+    @staticmethod
+    async def small_talk_agent(state: RetrieverState) -> dict[str, Any]:
+        validated_state = RetrieverState.model_validate(state)
+        return await SmallTalkAgent(payload=validated_state).execute()
 
-    async def query_refiner_agent(self, state: RetrieverState) -> dict[str, Any]:
-        """
-        Pure orchestration stub. LangGraph triggers this, 
-        the agent runs its logic, and returns the patch state.
-        """
-        agent = QueryRefinerAgent(payload=state)
-        return await agent.execute() 
-
-    async def knowledge_agent(self, state: RetrieverState) -> dict[str, Any]:
-        return {}
+    @staticmethod
+    async def query_refiner_agent(state: RetrieverState) -> dict[str, Any]:
+        validated_state = RetrieverState.model_validate(state)
+        return await QueryRefinerAgent(payload=validated_state).execute()
 
     async def retrieval_agent(self, state: RetrieverState) -> dict[str, Any]:
-        return {"retrieved_chunks": []}
+        validated_state = RetrieverState.model_validate(state)
+        return await RetrievalAgent(payload=validated_state, top_k=self.top_k).execute()
+
+    @staticmethod
+    def route_retrieval(state: RetrieverState) -> str:
+        state = RetrieverState.model_validate(state)
+        return "answer" if state.retrieval_passed else "fallback"
+
+    @staticmethod
+    async def synthesizer_agent(state: RetrieverState) -> dict[str, Any]:
+        validated_state = RetrieverState.model_validate(state)
+        return await SynthesizerAgent(payload=validated_state).execute()
 
     async def ainvoke(self, graph_input: dict[str, Any]) -> dict[str, Any]:
         """Run the compiled graph asynchronously for request-router callers."""

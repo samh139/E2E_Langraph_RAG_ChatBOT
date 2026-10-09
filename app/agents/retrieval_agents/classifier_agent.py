@@ -1,7 +1,6 @@
 # app/agents/retrieval_agents/classifier_agent.py
 from __future__ import annotations
 import json
-from collections.abc import Mapping
 from typing import Any
 from pydantic import BaseModel, Field
 
@@ -16,7 +15,7 @@ class IntentClassification(BaseModel):
 class ClassifierAgent:
     """Detect the exact intent of an incoming user query using Gemini and a dynamic taxonomy."""
 
-    def __init__(self, payload: str | Mapping[str, Any] | RetrieverState):
+    def __init__(self, payload: RetrieverState):
         self.payload = payload
         # Load the custom file rules you want to reuse
         self.taxonomy = load_intent_taxonomy()
@@ -52,23 +51,28 @@ INSTRUCTIONS:
 
     async def execute(self) -> dict[str, Any]:
         """Return a precise state patch suitable for downstream LangGraph nodes."""
-        if isinstance(self.payload, RetrieverState):
-            state = self.payload
-            query = state.query.strip()
-            
-            # Identify structured intent payload via Gemini
-            classification = await self._detect_intent(query)
-            
-            return {
-                "session_id": state.session_id,
-                "query_id": state.query_id,
-                "user_id": state.user_id,
-                "query": query,
-                # Outgoing metadata updates your LangGraph state patch dynamically
-                "intent": classification.get("intent", "generic_query"),
-                "intent_meta": {
-                    "confidence": classification.get("confidence", 1.0),
-                }
-            }
-        
-        raise TypeError("Payload must be an instance of RetrieverState")
+        if not isinstance(self.payload, RetrieverState):
+            raise TypeError("ClassifierAgent payload must be a RetrieverState")
+        state = self.payload
+        query = state.query.strip()
+
+        classification = await self._detect_intent(query)
+        if not isinstance(classification, dict):
+            classification = {}
+
+        intent = classification.get("intent", "generic_query")
+        if intent not in self.taxonomy:
+            intent = "generic_query"
+        try:
+            confidence = min(1.0, max(0.0, float(classification.get("confidence", 0.0))))
+        except (TypeError, ValueError):
+            confidence = 0.0
+
+        return {
+            "session_id": state.session_id,
+            "query_id": state.query_id,
+            "user_id": state.user_id,
+            "query": query,
+            "intent": intent,
+            "intent_meta": {"confidence": confidence},
+        }

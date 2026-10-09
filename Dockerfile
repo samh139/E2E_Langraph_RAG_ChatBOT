@@ -10,11 +10,17 @@ RUN apt-get update && apt-get install -y \
 # 3. Set the working directory inside the container sandbox
 WORKDIR /workspace
 
-# 4. Copy requirements separately so Docker can reuse the dependency layer
+# The cross-encoder reranker uses PyTorch; pin its CPU wheel so pip does not
+# resolve CUDA/NVIDIA runtime packages into this CPU-only application image.
+RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
+    pip install --index-url https://download.pytorch.org/whl/cpu \
+      torch==2.13.0+cpu
+
+# Copy requirements separately so Docker can reuse the dependency layer
 #    whenever requirements.txt has not changed.
 COPY requirements.txt .
 
-# 5. Install app dependencies.
+# Install app dependencies (Sentence Transformers is used only for CrossEncoder reranking).
 RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 

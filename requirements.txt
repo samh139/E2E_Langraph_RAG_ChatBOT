@@ -12,6 +12,7 @@ python-dotenv
 python-docx
 python-pptx
 ollama
+sentence-transformers
 pymongo
 uvicorn
 google-genai
