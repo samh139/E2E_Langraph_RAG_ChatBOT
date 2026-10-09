@@ -18,3 +18,4 @@ uvicorn
 google-genai
 langgraph-checkpoint-redis
 elasticsearch[async]
+deepeval
