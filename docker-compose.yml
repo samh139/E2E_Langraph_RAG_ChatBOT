@@ -82,6 +82,39 @@ services:
     restart: unless-stopped
 
   # -----------------------------------------------------------------
+  # 1d. ON-DEMAND OFFLINE EVALUATION (not started by regular `up`)
+  # -----------------------------------------------------------------
+  evaluation-runner:
+    profiles: ["evaluation"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    env_file:
+      - ./app/configs/.env
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-credentials.json
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DATABASE: rag_evaluation
+      MONGO_COLLECTION: deepeval_results
+    volumes:
+      - ./:/workspace
+      - hf-model-cache:/root/.cache/huggingface
+      - type: bind
+        source: ./app/configs/e2e-langragh-chatbot-510511-cb0dd6b38e63.json
+        target: /run/secrets/google-credentials.json
+        read_only: true
+        bind:
+          create_host_path: false
+    entrypoint: ["python", "-m", "app.evaluation.run"]
+
+  # -----------------------------------------------------------------
   # 2. VECTOR DATABASE ENGINE
   # -----------------------------------------------------------------
   elasticsearch:
@@ -251,8 +284,26 @@ services:
     depends_on:
       - redis
 
+  # -----------------------------------------------------------------
+  # 6. OFFLINE EVALUATION RESULT STORAGE
+  # -----------------------------------------------------------------
+  mongo:
+    profiles: ["evaluation"]
+    # MongoDB 7.0 is compatible with Docker Desktop's Linux 6.19 VM kernel.
+    # MongoDB 8.0.21–8.0.29 exits during startup on Linux kernels 6.19–7.0.13.
+    image: mongo:7.0
+    container_name: mongo
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   esdata:
   miniodata:
   redisdata: # 🎯 FIX: Added persistent target volume boundary for local stm assets
+  mongodata:
   hf-model-cache:

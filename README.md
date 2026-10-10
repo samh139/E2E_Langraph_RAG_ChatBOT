@@ -20,7 +20,7 @@ The system is split into two primary operational lifecycle layers:
 * **Vector Database Engine (Elasticsearch):** Manages high-performance lexical search and dense vector search capabilities.
 * **Raw Object Storage Tier (MinIO):** S3-compatible enterprise file storage engine protecting source assets.
 * **Stateful Checkpoint Memory (Redis):** Tracks user session transactions, chat state limits, and short-term operational histories.
-* **Metadata & Logging Layer (MongoDB):** Long-term historical conversation store, deep audit log tracker, and analytics warehouse.
+* **Offline Evaluation Results (MongoDB):** Stores DeepEval benchmark inputs, retrieved chunks, scores, and judge explanations for later review. Conversation memory currently uses Elasticsearch and Redis.
 
 ---
 
@@ -161,4 +161,3 @@ docker compose up retrieval-router
 When asked about your setup and initialization choices during technical rounds, highlight these architectural talking points:
 
 *"Instead of relying on unstable runtime anti-patterns like Kafka's default topic auto-creation or manual administrative setup, I engineered infrastructure-as-code automation directly into the compose lifecycle. I built autonomous setup containers that block execution until core storage and message brokers stabilize, programmatically injecting optimized partition topologies from day one. This guarantees that our data ingestion microservices map to decoupled, horizontally-scalable streams without configuration drift across development and deployment environments."*
-

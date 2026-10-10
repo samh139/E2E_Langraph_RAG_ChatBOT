@@ -27,6 +27,16 @@ _client = genai.Client(
 # Set your preferred Gemini model (e.g., gemini-2.5-flash for speed/classification)
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
+
+async def close_gemini_client() -> None:
+    """Release both transports owned by this module's Google GenAI client.
+
+    Long-running services should keep the shared client open for reuse. One-shot
+    commands, such as the DeepEval CLI, should call this during shutdown.
+    """
+    await _client.aio.aclose()
+    _client.close()
+
 def load_intent_taxonomy() -> dict:
     """Load the intent taxonomy file containing examples and tags."""
     file_path = os.path.join(BASE_DIR, "intent_classification.json")
