@@ -82,6 +82,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     try:
         principal = await asyncio.to_thread(validate_access_token, token)
+        print(f"Authenticated WebSocket connection: {session_id}, principal: {principal}")
         principal["allowed_roles"] = effective_permissions(principal["roles"])
         if not principal["allowed_roles"]:
             await websocket.close(code=4403, reason="No configured role permissions")
