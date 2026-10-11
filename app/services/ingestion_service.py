@@ -4,6 +4,7 @@ import json
 import uuid
 import hashlib
 import time
+import yaml  # Added for production roles mapping resolution
 import asyncio
 from pathlib import Path
 from datetime import datetime, timezone
@@ -19,14 +20,11 @@ from app.utils.kafka_delivery import produce_confirmed
 from app.workers.embed_worker import EmbedWorker
 from app.workers.indexer_worker import IndexerWorker
 from app.utils.alias_manager import AliasManager
-# from app.ingestion.clustering.cluster_job import run_clustering_job
 
 
 class IngestionService:
     def __init__(self):
-        # Defer MinIO initialization so dry runs do not create/check buckets.
         self.storage = None
-        # Fallback cascade logic to ensure same port is mapped across all sub-workers
         self.kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP") or os.getenv("KAFKA_BOOTSTRAP_SERVERS") or os.getenv("KAFKA_BOOTSTRAP_LOCALHOST") or "127.0.0.1:9094"
         
         self.producer_config = {
@@ -39,9 +37,37 @@ class IngestionService:
         self.chunks_topic = os.getenv("KAFKA_CHUNKS_TOPIC", "es.chunks")
         self._last_chunk_count = 0
         self._failed_files = []
-        # IngestionWorkflow is a builder class; compile it once and invoke the
-        # resulting LangGraph application for each input file.
         self.ingestion_graph = IngestionWorkflow().compile()
+        
+        # Load the document-to-role map used to tag each ingested chunk.
+        self.roles_config_path = ROOT_DIR / "app" / "configs" / "rbac_roles.yaml"
+        self._load_roles_mapping()
+
+    def _load_roles_mapping(self):
+        """Load document-to-role assignments from the RBAC YAML file."""
+        try:
+            with open(self.roles_config_path, "r", encoding="utf-8") as roles_file:
+                config = yaml.safe_load(roles_file) or {}
+            self.roles_mapping = config.get("roles_mapping", {})
+            self.fallback_role = config.get("security_defaults", {}).get(
+                "fallback_role", "bank_employee"
+            )
+            if not isinstance(self.roles_mapping, dict):
+                raise ValueError("roles_mapping must be a mapping of roles to filenames")
+        except Exception as e:
+            print(
+                f"[⚠️ WARNING] Could not load {self.roles_config_path}: {e}. "
+                "Using the bank_employee fallback role."
+            )
+            self.roles_mapping = {}
+            self.fallback_role = "bank_employee"
+
+    def _resolve_allowed_role(self, file_name: str) -> str:
+        """Production explicit match checker for incoming banking assets."""
+        for role, files_list in self.roles_mapping.items():
+            if file_name in files_list:
+                return role
+        return self.fallback_role
 
     async def bulk_ingest(self, target_folder_path: str, dry_run: bool = False) -> int:
         print("\n=====================================================================")
@@ -69,6 +95,13 @@ class IngestionService:
             run_id = str(uuid.uuid4())
             print(f"\n[*] Processing document: {file_path.name} | Run ID: {run_id[:8]}")
             
+            # 🔒 Explicitly find out which target role owns this bank document
+            resolved_role = self._resolve_allowed_role(file_path.name)
+            print(
+                f"🔒 Security Role Assigned: [{resolved_role}] "
+                f"for document {file_path.name}"
+            )
+            
             try:
                 if dry_run:
                     local_worker_path = str(file_path)
@@ -94,13 +127,14 @@ class IngestionService:
                     file_type=file_path.suffix.lower()[1:],
                     status="pending",
                     stage_timings_ms={},
-                    extracted_text=""
+                    extracted_text="",
+                    # 🔒 Inject resolved access tag directly into state context tracker
+                    allowed_role=resolved_role
                 )
 
                 print(f"[*] Dispatching to LangGraph workflow architecture...")
                 final_state = await self.ingestion_graph.ainvoke(state_input)
                 
-                # Compiled StateGraph returns a mapping, even with a Pydantic input.
                 if not isinstance(final_state, dict):
                     final_state = final_state.model_dump()
                 if final_state.get("error"):
@@ -111,10 +145,7 @@ class IngestionService:
                 self._last_chunk_count += len(chunks)
 
                 if dry_run:
-                    print(
-                        f"[DRY-RUN] {file_path.name}: extraction would produce "
-                        f"{len(chunks)} chunks."
-                    )
+                    print(f"[DRY-RUN] {file_path.name}: extraction would produce {len(chunks)} chunks.")
                     processed_count += 1
                     continue
 
@@ -131,6 +162,7 @@ class IngestionService:
                         "content": content_str,
                         "content_hash": hashlib.sha1(content_str.strip().encode("utf-8")).hexdigest(),
                         "created_at": datetime.now(timezone.utc).isoformat(),
+                        "allowed_role": chunk_item.get("allowed_role", resolved_role),
                     }
                     
                     produce_confirmed(
@@ -152,13 +184,12 @@ class IngestionService:
                 self._failed_files.append(file_path.name)
                 continue
                 
-        return processed_count # FIXED: Crucial count returned to caller
+        return processed_count
 
     def run_embedding_phase(self):
         print("\n=====================================================================")
         print(f"🧠 [PHASE 2] Handing Execution Over to EmbedWorker Module")
         print("=====================================================================")
-        # Explicit bootstrap config passed to match running engine context
         embed_worker = EmbedWorker(kafka_bootstrap=self.kafka_bootstrap)
         embed_worker.run()
 
@@ -166,7 +197,6 @@ class IngestionService:
         print("\n=====================================================================")
         print(f"🔍 [PHASE 3] Handing Execution Over to IndexerWorker Module")
         print("=====================================================================")
-        # Explicit bootstrap config passed to match running engine context
         indexer_worker = IndexerWorker(
             kafka_bootstrap=self.kafka_bootstrap,
             target_index=target_index,
@@ -196,20 +226,16 @@ class IngestionService:
                 "processed_files": total_files,
                 "chunks": self._last_chunk_count,
                 "failed_files": self._failed_files,
-            }
-
+                }
         if self._failed_files:
             raise RuntimeError(
-                "Full index rebuild cancelled because some source files failed: "
-                + ", ".join(self._failed_files)
-                + ". The current live alias was not changed."
+            "Full index rebuild cancelled because some source files failed: "
+            + ", ".join(self._failed_files)
+            + ". The current live alias was not changed."
             )
-
         alias_manager = AliasManager()
         staging_index = None
         try:
-            # Establish the existing live target first. A failure after this
-            # point leaves reads on the current index until the final swap.
             old_live_index = alias_manager.ensure_live_alias()
             staging_index = alias_manager.make_temp_index_name()
             alias_manager.create_index(staging_index)
@@ -217,8 +243,6 @@ class IngestionService:
                 f"[*] Building replacement index '{staging_index}' while alias "
                 f"'{alias_manager.alias}' remains on '{old_live_index}'."
             )
-
-            # Finish embedding before the indexer starts its finite drain loop.
             await asyncio.to_thread(self.run_embedding_phase)
             indexed_count = await asyncio.to_thread(
                 self.run_indexing_phase, staging_index
@@ -228,7 +252,6 @@ class IngestionService:
                     f"Staging index received {indexed_count} chunks; "
                     f"expected {self._last_chunk_count}. Live alias was not changed."
                 )
-
             alias_manager.es.indices.refresh(index=staging_index)
             stored_count = alias_manager.es.count(index=staging_index)["count"]
             if stored_count != self._last_chunk_count:
@@ -236,7 +259,6 @@ class IngestionService:
                     f"Staging index contains {stored_count} documents; "
                     f"expected {self._last_chunk_count}. Live alias was not changed."
                 )
-
             previous_indices = alias_manager.swap_alias(staging_index)
             print(
                 f"[✓] Alias '{alias_manager.alias}' now points to "
@@ -245,33 +267,19 @@ class IngestionService:
             )
         finally:
             alias_manager.close()
-
-        # # 🎯 [PHASE 4]: HIERARCHICAL TOPIC CLUSTERING & SUMMARY MAP GENERATION
-        # print("\n=====================================================================")
-        # print(f"🗂️ [PHASE 4] Rebuilding Hierarchical Topic Clusters & Summaries")
-        # print("=====================================================================")
-        # try:
-        #     # Executes text grouping dynamically over all chunks now safe in ES
-        #     result = await asyncio.to_thread(run_clustering_job, dry_run=False)
-        #     if result.get("status") != "SUCCESS":
-        #         raise RuntimeError(f"Clustering failed: {result.get('error', result)}")
-        #     print("[✓] Hierarchical document clustering schema map complete.")
-        # except Exception as cluster_err:
-        #     print(f"[X] Clustering optimization execution pass failed: {cluster_err}")
-        #     raise
-
+        
         duration = time.perf_counter() - start_time
         print("\n=====================================================================")
         print(f"🏆 SUCCESS: END-TO-END BATCH LIFECYCLE COMPLETE! Total Time: {duration:.3f}s")
         print("=====================================================================")
-        
+
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
+
     load_dotenv("app/configs/.env")
-    
     service = IngestionService()
     TARGET_DATA_DIR = "./data"
-    
     dry_run = os.getenv("INGESTION_DRY_RUN", "false").strip().lower() in {
         "1", "true", "yes", "on"
     }

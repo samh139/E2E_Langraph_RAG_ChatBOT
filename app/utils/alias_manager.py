@@ -19,6 +19,7 @@ def chunk_index_mappings() -> dict:
             "doc_id": {"type": "keyword"},
             "file_name": {"type": "keyword"},
             "file_type": {"type": "keyword"},
+            "allowed_role": {"type": "keyword"},
             "content": {"type": "text"},
             "content_hash": {"type": "keyword"},
             "created_at": {"type": "date"},

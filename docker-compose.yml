@@ -23,7 +23,7 @@ services:
     environment:
       # Keep `docker compose up` safe by default. Set INGESTION_DRY_RUN=false
       # explicitly when you intend to write data and swap the live ES alias.
-      INGESTION_DRY_RUN: "true"
+      INGESTION_DRY_RUN: "false"
     volumes:
       - ./:/workspace
     command: ["python", "-m", "app.services.ingestion_service"]

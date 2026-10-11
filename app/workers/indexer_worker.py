@@ -57,6 +57,7 @@ class IndexerWorker:
             "doc_id": chunk["doc_id"],
             "file_name": chunk.get("file_name"),
             "file_type": chunk.get("file_type"),
+            "allowed_role": chunk.get("allowed_role"),
             "content": chunk["content"],
             "content_hash": chunk.get("content_hash"),
             "created_at": chunk.get("created_at"),

@@ -1,0 +1,31 @@
+# =====================================================================
+# Production RBAC Explicit Document-to-Role Permissions Mapping
+# =====================================================================
+
+roles_mapping:
+  compliance_officer:
+    - "RBI_KYC.pdf"
+    - "RBI_KYC_FQA.pdf"
+    - "RBI_CUSTOMER_SERVICES.pdf"
+    - "AML Investigation Scenarios_v1.6 (1).pptx"
+    
+  retail_banking_staff:
+    - "SBI_charges.pdf"
+    - "SBI_ATM_Charges.pdf"
+    - "HDFC_Revision_Charges.pdf"
+    - "HDFC_SavingAcc_Service_charges.pdf"
+    - "HDFC_SAVING_Nri_Charges.pdf"
+    - "HDFC-Bank-Home-Loan-Agreement.pdf"
+    
+  corporate_banking_staff:
+    - "RBI_DIGITAL_LENDING.pdf"
+    - "Synthetic transaction data generation from your threshold rulebook.docx"
+    - "Data_Protection_Laws_India.pdf"
+    - "Data_Protection_Policy_UAE_Enhanced.pdf"
+    
+  bank_employee:
+    - "SBI_HDFC_RBI_KnowledgeBase.pdf"
+    - "Intelligent_Conversational_ChatBot_Article.docx"
+    - "RetiralSettlements.pptx"
+
+

@@ -1,5 +1,4 @@
 from uuid import uuid4
-
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 
@@ -10,8 +9,10 @@ class IngestionState(BaseModel):
     file_name: str
     file_extension: str
     mime_type: Optional[str] = None
-
     file_type: str = ""
+    
+    # 🔒 Production RBAC: Explicit tracking variable for chunk metadata injection
+    allowed_role: str = "bank_employee"
 
     extracted_text: str = ""
     extraction_metadata: Dict[str, Any] = Field(default_factory=dict)

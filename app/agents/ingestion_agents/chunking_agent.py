@@ -13,6 +13,7 @@ class ChunkingAgent:
         file_name = state.file_name
         file_type = state.file_type or ""
         run_id = state.run_id
+        allowed_role = state.allowed_role
 
         self.logger.info(f"[Chunking Agent] Processing: {file_name} | Run ID: {run_id}")
 
@@ -51,6 +52,7 @@ class ChunkingAgent:
                 "doc_id": run_id,
                 "file_name": file_name,
                 "file_type": file_type.lower().replace(".", "").strip(),
+                "allowed_role": allowed_role,
                 "content": content_str.strip()
             }
             standardized_chunks.append(clean_chunk)
