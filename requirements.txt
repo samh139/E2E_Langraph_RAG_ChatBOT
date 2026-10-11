@@ -4,6 +4,8 @@ elasticsearch
 redis
 fastapi
 uvicorn
+PyJWT[crypto]>=2.10.1
+PyYAML>=6.0
 pydantic
 confluent-kafka
 minio
@@ -14,5 +16,10 @@ python-pptx
 ollama
 sentence-transformers
 pymongo
-
-torch --index-url https://pytorch.org
+uvicorn
+google-genai
+presidio-analyzer
+presidio-anonymizer
+langgraph-checkpoint-redis
+elasticsearch[async]
+deepeval

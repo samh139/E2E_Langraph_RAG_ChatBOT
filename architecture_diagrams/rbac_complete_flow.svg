@@ -1,0 +1,302 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="3860" viewBox="0 0 1800 3860"><defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5f9ff"/><stop offset="1" stop-color="#edf4fb"/></linearGradient><linearGradient id="navy" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#123a66"/><stop offset="1" stop-color="#1c5684"/></linearGradient><filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#173856" flood-opacity=".12"/></filter><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#477395"/></marker><marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#27856a"/></marker><marker id="arrowRed" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#c64b5c"/></marker><style>text{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;fill:#18324b}.panel{fill:#fff;stroke:#d7e4ef;stroke-width:2;filter:url(#shadow)}.head{fill:url(#navy)}</style></defs><rect width="100%" height="100%" fill="url(#bg)"/>
+<circle cx="1640" cy="58" r="115" fill="#dcecff" opacity=".5"/><circle cx="1710" cy="112" r="60" fill="#d8f0e7" opacity=".6"/>
+<text x="62" y="70" font-size="15" font-weight="800" text-anchor="start" fill="#2474ad">SECURE BANKING RAG</text>
+<text x="62" y="125" font-size="39" font-weight="780" text-anchor="start" fill="#123a61">JWT + RBAC · End-to-End System Flow</text>
+<text x="64" y="166" font-size="18" font-weight="450" text-anchor="start" fill="#557087">Offline document ingestion and real-time, role-scoped retrieval — traced through the actual application agents.</text>
+<rect class="panel" x="34" y="205" width="1732" height="485" rx="24"/><path class="head" d="M58 205 H1742 Q1766 205 1766 229 V275 H34 V229 Q34 205 58 205Z"/>
+<text x="68" y="250" font-size="27" font-weight="750" text-anchor="start" fill="#fff">01  ·  OFFLINE INGESTION</text>
+<text x="1725" y="248" font-size="14" font-weight="600" text-anchor="end" fill="#d8eaff">Documents receive access metadata before indexing</text>
+<rect x="27" y="278" width="180" height="206" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="54" cy="307" r="15" fill="#07528a"/>
+<text x="54" y="312" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">1</text>
+<text x="78" y="312" font-size="17" font-weight="740" text-anchor="start" fill="#07528a">Bank documents</text>
+<text x="47" y="344" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">PDF · DOCX · PPTX</text>
+<text x="47" y="367" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Source folder</text>
+<path d="M208 380 L216 380" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="221" y="278" width="180" height="206" rx="17" fill="#effaf5" stroke="#6bc09c" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="248" cy="307" r="15" fill="#11634b"/>
+<text x="248" y="312" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">2</text>
+<text x="272" y="312" font-size="17" font-weight="740" text-anchor="start" fill="#11634b">Resolve document role</text>
+<text x="241" y="344" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">roles_mapping in YAML</text>
+<text x="241" y="367" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">filename → allowed_role</text>
+<path d="M402 380 L410 380" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="415" y="278" width="180" height="206" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="442" cy="307" r="15" fill="#07528a"/>
+<text x="442" y="312" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">3</text>
+<text x="466" y="312" font-size="17" font-weight="740" text-anchor="start" fill="#07528a">FileClassifierAgent</text>
+<text x="435" y="344" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Detect extension</text>
+<text x="435" y="367" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Choose extractor path</text>
+<path d="M596 380 L604 380" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="609" y="278" width="180" height="206" rx="17" fill="#f7f3ff" stroke="#a990de" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="636" cy="307" r="15" fill="#543c89"/>
+<text x="636" y="312" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">4</text>
+<text x="660" y="312" font-size="17" font-weight="740" text-anchor="start" fill="#543c89">Format extractors</text>
+<text x="629" y="344" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">PDFExtractorAgent</text>
+<text x="629" y="367" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">DocxExtractionAgent</text>
+<text x="629" y="390" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">PPTXExtractorAgent</text>
+<path d="M790 380 L798 380" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="803" y="278" width="180" height="206" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="830" cy="307" r="15" fill="#07528a"/>
+<text x="830" y="312" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">5</text>
+<text x="854" y="312" font-size="17" font-weight="740" text-anchor="start" fill="#07528a">ChunkingAgent</text>
+<text x="823" y="344" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Split extracted content</text>
+<text x="823" y="367" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">~1,000 chars · 250 overlap</text>
+<path d="M984 380 L992 380" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="997" y="278" width="180" height="206" rx="17" fill="#effaf5" stroke="#6bc09c" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1024" cy="307" r="15" fill="#11634b"/>
+<text x="1024" y="312" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">6</text>
+<text x="1048" y="312" font-size="17" font-weight="740" text-anchor="start" fill="#11634b">Tag each chunk</text>
+<text x="1017" y="344" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">file_name · file_type</text>
+<text x="1017" y="367" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">allowed_role · chunk_id</text>
+<path d="M1178 380 L1186 380" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1191" y="278" width="180" height="206" rx="17" fill="#fff8e9" stroke="#e2b85f" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1218" cy="307" r="15" fill="#785116"/>
+<text x="1218" y="312" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">7</text>
+<text x="1242" y="312" font-size="17" font-weight="740" text-anchor="start" fill="#785116">Kafka · es.chunks</text>
+<text x="1211" y="344" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Publish chunk payload</text>
+<text x="1211" y="367" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Confirmed delivery</text>
+<path d="M1372 380 L1380 380" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1385" y="278" width="180" height="206" rx="17" fill="#effafa" stroke="#68b8b7" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1412" cy="307" r="15" fill="#176d70"/>
+<text x="1412" y="312" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">8</text>
+<text x="1436" y="312" font-size="17" font-weight="740" text-anchor="start" fill="#176d70">EmbedWorker + IndexerWorker</text>
+<text x="1405" y="344" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Create embeddings</text>
+<text x="1405" y="367" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Write staging ES index</text>
+<path d="M1566 380 L1574 380" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1579" y="278" width="180" height="206" rx="17" fill="#effaf5" stroke="#6bc09c" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1606" cy="307" r="15" fill="#11634b"/>
+<text x="1606" y="312" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">9</text>
+<text x="1630" y="312" font-size="17" font-weight="740" text-anchor="start" fill="#11634b">AliasManager</text>
+<text x="1599" y="344" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Check indexed counts</text>
+<text x="1599" y="367" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Swap live alias atomically</text>
+<text x="62" y="526" font-size="15" font-weight="750" text-anchor="start" fill="#126a55">RBAC source:</text>
+<text x="160" y="526" font-size="15" font-weight="500" text-anchor="start" fill="#38566d">roles_mapping assigns filenames to document-role tags; role_permissions later maps verified JWT roles to those tags.</text>
+<text x="62" y="557" font-size="15" font-weight="750" text-anchor="start" fill="#126a55">Index safety:</text>
+<text x="160" y="557" font-size="15" font-weight="500" text-anchor="start" fill="#38566d">Ingestion builds a replacement index, checks the result, then moves the live alias; the previous index is retained for rollback.</text><text x="62" y="588" font-size="15" font-weight="750" text-anchor="start" fill="#126a55">Raw archive:</text><text x="160" y="588" font-size="15" font-weight="500" text-anchor="start" fill="#38566d">Non-dry-run ingestion stores original files in MinIO before extraction.</text>
+<rect class="panel" x="34" y="720" width="1732" height="590" rx="24"/><path class="head" d="M58 720 H1742 Q1766 720 1766 744 V790 H34 V744 Q34 720 58 720Z"/>
+<text x="68" y="765" font-size="27" font-weight="750" text-anchor="start" fill="#fff">02  ·  WEBSOCKET GATEWAY + JWT AUTHORIZATION</text>
+<text x="1725" y="763" font-size="14" font-weight="600" text-anchor="end" fill="#d8eaff">Authentication happens once at connection; expiry is checked again per query</text>
+<rect x="52" y="800" width="320" height="184" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="79" cy="829" r="15" fill="#07528a"/>
+<text x="79" y="834" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">1</text>
+<text x="103" y="834" font-size="18" font-weight="740" text-anchor="start" fill="#07528a">Client connects</text>
+<text x="72" y="866" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Postman / UI</text>
+<text x="72" y="889" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">ws://host:8000/ws/{session_id}</text>
+<path d="M373 890 L390 890" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="397" y="800" width="320" height="184" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="424" cy="829" r="15" fill="#07528a"/>
+<text x="424" y="834" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">2</text>
+<text x="448" y="834" font-size="18" font-weight="740" text-anchor="start" fill="#07528a">websocket_endpoint()</text>
+<text x="417" y="866" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Check Origin when supplied</text>
+<text x="417" y="889" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Read Authorization: Bearer …</text>
+<text x="417" y="912" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Cookie fallback: access_token</text>
+<path d="M718 890 L735 890" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="742" y="800" width="320" height="184" rx="17" fill="#f7f3ff" stroke="#a990de" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="769" cy="829" r="15" fill="#543c89"/>
+<text x="769" y="834" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">3</text>
+<text x="793" y="834" font-size="18" font-weight="740" text-anchor="start" fill="#543c89">validate_access_token()</text>
+<text x="762" y="866" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Verify signature + algorithm</text>
+<text x="762" y="889" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Check iss · aud · exp · sub</text>
+<text x="762" y="912" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Extract verified user ID + roles</text>
+<path d="M1063 890 L1080 890" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1087" y="800" width="320" height="184" rx="17" fill="#effaf5" stroke="#6bc09c" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1114" cy="829" r="15" fill="#11634b"/>
+<text x="1114" y="834" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">4</text>
+<text x="1138" y="834" font-size="18" font-weight="740" text-anchor="start" fill="#11634b">effective_permissions()</text>
+<text x="1107" y="866" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Read role_permissions</text>
+<text x="1107" y="889" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">JWT role → document roles</text>
+<text x="1107" y="912" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Unknown roles grant nothing</text>
+<path d="M1408 890 L1425 890" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1432" y="800" width="320" height="184" rx="17" fill="#fff8e9" stroke="#e2b85f" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1459" cy="829" r="15" fill="#785116"/>
+<text x="1459" y="834" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">5</text>
+<text x="1483" y="834" font-size="18" font-weight="740" text-anchor="start" fill="#785116">Authorization decision</text>
+<text x="1452" y="866" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Valid token + non-empty</text>
+<text x="1452" y="889" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">configured permissions?</text>
+<rect x="1390" y="1012" width="320" height="88" rx="17" fill="#fff2f3" stroke="#dc8890" stroke-width="2" filter="url(#shadow)"/>
+<text x="1410" y="1046" font-size="18" font-weight="740" text-anchor="start" fill="#9a3443">Reject handshake</text>
+<text x="1410" y="1078" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Missing/invalid token or no permissions</text>
+<path d="M1540 985 L1540 1007" fill="none" stroke="#c64b5c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowRed)"/>
+<text x="1540" y="987" font-size="14" font-weight="700" text-anchor="middle" fill="#c64b5c">DENY</text>
+<rect x="110" y="1120" width="350" height="175" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="137" cy="1149" r="15" fill="#07528a"/>
+<text x="137" y="1154" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">6</text>
+<text x="161" y="1154" font-size="18" font-weight="740" text-anchor="start" fill="#07528a">Session registration</text>
+<text x="130" y="1186" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Store verified principal</text>
+<text x="130" y="1209" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Create unique connection_id</text>
+<path d="M461 1205 L513 1205" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="520" y="1120" width="350" height="175" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="547" cy="1149" r="15" fill="#07528a"/>
+<text x="547" y="1154" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">7</text>
+<text x="571" y="1154" font-size="18" font-weight="740" text-anchor="start" fill="#07528a">Receive query JSON</text>
+<text x="540" y="1186" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Require non-empty text</text>
+<text x="540" y="1209" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Check connection + JWT expiry</text>
+<path d="M871 1205 L923 1205" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="930" y="1120" width="350" height="175" rx="17" fill="#f7f3ff" stroke="#a990de" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="957" cy="1149" r="15" fill="#543c89"/>
+<text x="957" y="1154" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">8</text>
+<text x="981" y="1154" font-size="18" font-weight="740" text-anchor="start" fill="#543c89">sign_internal_request()</text>
+<text x="950" y="1186" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Add user, roles, permissions</text>
+<text x="950" y="1209" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">HMAC-sign with internal secret</text>
+<path d="M1281 1205 L1333 1205" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1340" y="1120" width="350" height="175" rx="17" fill="#fff8e9" stroke="#e2b85f" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1367" cy="1149" r="15" fill="#785116"/>
+<text x="1367" y="1154" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">9</text>
+<text x="1391" y="1154" font-size="18" font-weight="740" text-anchor="start" fill="#785116">Kafka · chat-requests</text>
+<text x="1360" y="1186" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Publish signed request</text>
+<text x="1360" y="1209" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">key = session_id</text>
+<path d="M1370 985 C1370 1040 285 1040 285 1113" fill="none" stroke="#27856a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowGreen)"/>
+<text x="827" y="1010" font-size="14" font-weight="700" text-anchor="middle" fill="#27856a">ALLOW</text>
+<rect class="panel" x="34" y="1340" width="1732" height="1900" rx="24"/><path class="head" d="M58 1340 H1742 Q1766 1340 1766 1364 V1410 H34 V1364 Q34 1340 58 1340Z"/>
+<text x="68" y="1385" font-size="27" font-weight="750" text-anchor="start" fill="#fff">03  ·  ROUTER SERVICE + RETRIEVAL LANGGRAPH</text>
+<text x="1725" y="1383" font-size="14" font-weight="600" text-anchor="end" fill="#d8eaff">Signed identity and permissions travel with every query</text>
+<rect x="62" y="1455" width="365" height="190" rx="17" fill="#fff8e9" stroke="#e2b85f" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="89" cy="1484" r="15" fill="#785116"/>
+<text x="89" y="1489" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">1</text>
+<text x="113" y="1489" font-size="18" font-weight="740" text-anchor="start" fill="#785116">RequestResponseRouter.start()</text>
+<text x="82" y="1521" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Consume chat-requests</text>
+<text x="82" y="1544" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Dispatch request handler</text>
+<path d="M428 1550 L478 1550" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="485" y="1455" width="365" height="190" rx="17" fill="#f7f3ff" stroke="#a990de" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="512" cy="1484" r="15" fill="#543c89"/>
+<text x="512" y="1489" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">2</text>
+<text x="536" y="1489" font-size="18" font-weight="740" text-anchor="start" fill="#543c89">verify_internal_request()</text>
+<text x="505" y="1521" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Recompute HMAC; compare safely</text>
+<text x="505" y="1544" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Check freshness + required fields</text>
+<text x="505" y="1567" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Recheck roles against YAML policy</text>
+<path d="M851 1550 L901 1550" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="908" y="1455" width="365" height="190" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="935" cy="1484" r="15" fill="#07528a"/>
+<text x="935" y="1489" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">3</text>
+<text x="959" y="1489" font-size="18" font-weight="740" text-anchor="start" fill="#07528a">Build graph input</text>
+<text x="928" y="1521" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">query · user_id · user_roles</text>
+<text x="928" y="1544" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">allowed_roles · connection_id</text>
+<text x="928" y="1567" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">memory_scope_id · session_id</text>
+<path d="M1274 1550 L1324 1550" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1331" y="1455" width="365" height="190" rx="17" fill="#effafa" stroke="#68b8b7" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1358" cy="1484" r="15" fill="#176d70"/>
+<text x="1358" y="1489" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">4</text>
+<text x="1382" y="1489" font-size="18" font-weight="740" text-anchor="start" fill="#176d70">RetrievalWorkflow.ainvoke()</text>
+<text x="1351" y="1521" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Run LangGraph state machine</text>
+<text x="1351" y="1544" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">RetrieverState carries auth scope</text>
+<path d="M1515 1295 C1515 1320 245 1320 245 1450" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="880" y="1333" font-size="14" font-weight="700" text-anchor="middle" fill="#477395">signed Kafka payload</text>
+<rect x="650" y="1710" width="500" height="180" rx="17" fill="#f7f3ff" stroke="#a990de" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="677" cy="1739" r="15" fill="#543c89"/>
+<text x="677" y="1744" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">5</text>
+<text x="701" y="1744" font-size="18" font-weight="740" text-anchor="start" fill="#543c89">ClassifierAgent · intent classification</text>
+<text x="670" y="1776" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">LLM classifies intent from configured taxonomy.</text>
+<text x="670" y="1799" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">This is conversational routing, not RBAC.</text>
+<path d="M1515 1648 C1515 1683 900 1683 900 1705" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="1207" y="1667" font-size="14" font-weight="700" text-anchor="middle" fill="#477395">start graph</text>
+<rect x="105" y="1965" width="450" height="175" rx="17" fill="#effafa" stroke="#68b8b7" stroke-width="2" filter="url(#shadow)"/>
+<text x="125" y="1999" font-size="18" font-weight="740" text-anchor="start" fill="#176d70">SmallTalkAgent · direct path</text>
+<text x="125" y="2031" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Greeting / thanks / farewell / off-topic</text>
+<text x="125" y="2054" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Returns a short conversational response.</text>
+<rect x="650" y="1965" width="500" height="205" rx="17" fill="#f7f3ff" stroke="#a990de" stroke-width="2" filter="url(#shadow)"/>
+<text x="670" y="1999" font-size="18" font-weight="740" text-anchor="start" fill="#543c89">QueryRefinerAgent · knowledge path</text>
+<text x="670" y="2031" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Reads STM + relevant LTM under memory_scope_id.</text>
+<text x="670" y="2054" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Uses context only to resolve follow-up wording.</text>
+<text x="670" y="2077" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Returns a retrieval-ready query.</text>
+<rect x="1240" y="1965" width="470" height="175" rx="17" fill="#f3f6f9" stroke="#aabac8" stroke-width="2" filter="url(#shadow)"/>
+<text x="1260" y="1999" font-size="18" font-weight="740" text-anchor="start" fill="#425b70">Memory read · scope protected</text>
+<text x="1260" y="2031" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">STM: current session summary</text>
+<text x="1260" y="2054" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">LTM: relevant prior turns</text>
+<text x="1260" y="2077" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Both keyed by user + permission scope</text>
+<path d="M760 1888 C760 1925 330 1925 330 1958" fill="none" stroke="#27856a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowGreen)"/>
+<text x="545" y="1914" font-size="14" font-weight="700" text-anchor="middle" fill="#27856a">small-talk intent</text>
+<path d="M895 1888 L895 1958" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="895" y="1914" font-size="14" font-weight="700" text-anchor="middle" fill="#477395">knowledge intent</text>
+<path d="M1235 2050 L1157 2050" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="1196" y="2041" font-size="14" font-weight="700" text-anchor="middle" fill="#477395">STM + LTM</text>
+<rect x="650" y="2245" width="500" height="185" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="677" cy="2274" r="15" fill="#07528a"/>
+<text x="677" y="2279" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">6</text>
+<text x="701" y="2279" font-size="18" font-weight="740" text-anchor="start" fill="#07528a">RetrievalAgent</text>
+<text x="670" y="2311" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Embed refined query with Ollama.</text>
+<text x="670" y="2334" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Call hybrid ChunkRetriever with allowed_roles.</text>
+<text x="670" y="2357" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">If permissions are empty, fail closed.</text>
+<path d="M900 2173 L900 2238" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="85" y="2510" width="650" height="195" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="112" cy="2539" r="15" fill="#07528a"/>
+<text x="112" y="2544" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">7</text>
+<text x="136" y="2544" font-size="18" font-weight="740" text-anchor="start" fill="#07528a">BM25 · text search</text>
+<text x="105" y="2576" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">multi_match over content / filename / type</text>
+<text x="105" y="2599" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Elasticsearch terms filter: allowed_role ∈ permissions</text>
+<text x="105" y="2622" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Returns authorized lexical candidates</text>
+<rect x="1065" y="2510" width="650" height="195" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1092" cy="2539" r="15" fill="#07528a"/>
+<text x="1092" y="2544" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">8</text>
+<text x="1116" y="2544" font-size="18" font-weight="740" text-anchor="start" fill="#07528a">Vector · kNN search</text>
+<text x="1085" y="2576" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Embed query vector; search embedding_vector</text>
+<text x="1085" y="2599" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Elasticsearch terms filter: allowed_role ∈ permissions</text>
+<text x="1085" y="2622" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Returns authorized semantic candidates</text>
+<path d="M765 2433 C765 2470 480 2470 480 2503" fill="none" stroke="#27856a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowGreen)"/>
+<text x="622" y="2459" font-size="14" font-weight="700" text-anchor="middle" fill="#27856a">same allowed_roles</text>
+<path d="M1035 2433 C1035 2470 1390 2470 1390 2503" fill="none" stroke="#27856a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowGreen)"/>
+<text x="1212" y="2459" font-size="14" font-weight="700" text-anchor="middle" fill="#27856a">same allowed_roles</text>
+<rect x="650" y="2760" width="500" height="155" rx="17" fill="#effafa" stroke="#68b8b7" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="677" cy="2789" r="15" fill="#176d70"/>
+<text x="677" y="2794" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">9</text>
+<text x="701" y="2794" font-size="18" font-weight="740" text-anchor="start" fill="#176d70">Merge + rerank</text>
+<text x="670" y="2826" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">RRF merges BM25 and vector candidates.</text>
+<text x="670" y="2849" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Cross-encoder scores relevance; keep top chunks.</text>
+<path d="M735 2708 C735 2735 790 2735 790 2753" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="762" y="2721" font-size="14" font-weight="700" text-anchor="middle" fill="#477395">lexical</text>
+<path d="M1065 2708 C1065 2735 1010 2735 1010 2753" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="1037" y="2721" font-size="14" font-weight="700" text-anchor="middle" fill="#477395">semantic</text>
+<rect x="710" y="2965" width="380" height="130" rx="17" fill="#fff8e9" stroke="#e2b85f" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="737" cy="2994" r="15" fill="#785116"/>
+<text x="737" y="2999" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">10</text>
+<text x="761" y="2999" font-size="18" font-weight="740" text-anchor="start" fill="#785116">Relevance gate</text>
+<text x="730" y="3031" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Best score ≥ configured threshold?</text>
+<path d="M900 2920 L900 2958" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="95" y="3130" width="520" height="95" rx="17" fill="#fff2f3" stroke="#dc8890" stroke-width="2" filter="url(#shadow)"/>
+<text x="115" y="3164" font-size="18" font-weight="740" text-anchor="start" fill="#9a3443">SmallTalkAgent fallback</text>
+<text x="115" y="3196" font-size="14" font-weight="510" text-anchor="start" fill="#27455f">Low relevance → fixed role-safe message; retrieval errors get a service message.</text>
+<rect x="1190" y="3090" width="520" height="145" rx="17" fill="#effaf5" stroke="#6bc09c" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="1217" cy="3119" r="15" fill="#11634b"/>
+<text x="1217" y="3124" font-size="15" font-weight="750" text-anchor="middle" fill="#fff">11</text>
+<text x="1241" y="3124" font-size="18" font-weight="740" text-anchor="start" fill="#11634b">SynthesizerAgent</text>
+<text x="1210" y="3156" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Only accepted authorized chunks enter context.</text>
+<text x="1210" y="3179" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Grounded answer with filename citations; no outside knowledge.</text>
+<path d="M710 3025 C710 3070 430 3070 430 3122" fill="none" stroke="#c64b5c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowRed)"/>
+<text x="570" y="3064" font-size="14" font-weight="700" text-anchor="middle" fill="#c64b5c">NO / low relevance</text>
+<path d="M1090 3025 C1090 3060 1440 3060 1440 3082" fill="none" stroke="#27856a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowGreen)"/>
+<text x="1265" y="3044" font-size="14" font-weight="700" text-anchor="middle" fill="#27856a">YES</text>
+<rect class="panel" x="34" y="3280" width="1732" height="450" rx="24"/><path class="head" d="M58 3280 H1742 Q1766 3280 1766 3304 V3350 H34 V3304 Q34 3280 58 3280Z"/>
+<text x="68" y="3325" font-size="27" font-weight="750" text-anchor="start" fill="#fff">04  ·  MEMORY + RESPONSE RETURN</text>
+<text x="1725" y="3323" font-size="14" font-weight="600" text-anchor="end" fill="#d8eaff">The reply is correlated to the original WebSocket connection</text>
+<rect x="65" y="3400" width="365" height="205" rx="17" fill="#effafa" stroke="#68b8b7" stroke-width="2" filter="url(#shadow)"/>
+<text x="85" y="3434" font-size="18" font-weight="740" text-anchor="start" fill="#176d70">Workflow result</text>
+<text x="85" y="3466" font-size="16" font-weight="510" text-anchor="start" fill="#27455f">Answer or safe fallback</text>
+<text x="85" y="3489" font-size="16" font-weight="510" text-anchor="start" fill="#27455f">Source metadata + query ID</text>
+<path d="M250 3353 L250 3393" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="490" y="3400" width="410" height="205" rx="17" fill="#f3f6f9" stroke="#aabac8" stroke-width="2" filter="url(#shadow)"/>
+<text x="510" y="3434" font-size="18" font-weight="740" text-anchor="start" fill="#425b70">Persist scoped memory</text>
+<text x="510" y="3466" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Store conversation in LTM / ES.</text>
+<text x="510" y="3489" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Update STM session summary.</text>
+<text x="510" y="3512" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Use user_id + memory_scope_id.</text>
+<rect x="960" y="3400" width="300" height="205" rx="17" fill="#fff8e9" stroke="#e2b85f" stroke-width="2" filter="url(#shadow)"/>
+<text x="980" y="3434" font-size="18" font-weight="740" text-anchor="start" fill="#785116">Kafka · chat-responses</text>
+<text x="980" y="3466" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">session_id</text>
+<text x="980" y="3489" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">connection_id</text>
+<text x="980" y="3512" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">answer + sources</text>
+<rect x="1320" y="3400" width="415" height="205" rx="17" fill="#f1f8ff" stroke="#65a9df" stroke-width="2" filter="url(#shadow)"/>
+<text x="1340" y="3434" font-size="18" font-weight="740" text-anchor="start" fill="#07528a">consume_loop() + manager.send()</text>
+<text x="1340" y="3466" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">Find active session and matching</text>
+<text x="1340" y="3489" font-size="15" font-weight="510" text-anchor="start" fill="#27455f">connection_id; send JSON answer.</text>
+<path d="M432 3500 L483 3500" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M902 3500 L953 3500" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M1262 3500 L1313 3500" fill="none" stroke="#477395" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="34" y="3760" width="1732" height="1" fill="#cfdeea"/>
+<text x="62" y="3790" font-size="13" font-weight="800" text-anchor="start" fill="#2474ad">SECURITY INVARIANT</text>
+<text x="225" y="3790" font-size="14" font-weight="550" text-anchor="start" fill="#38566d">Authentication decides who the caller is; RBAC supplies allowed document roles; Elasticsearch filters both retrieval modes before synthesis.</text>
+<line x1="62" y1="3815" x2="97" y2="3815" stroke="#477395" stroke-width="3" marker-end="url(#arrow)"/>
+<text x="107" y="3820" font-size="13" font-weight="600" text-anchor="start" fill="#567086">service/data flow</text>
+<line x1="285" y1="3815" x2="320" y2="3815" stroke="#27856a" stroke-width="3" marker-end="url(#arrowGreen)"/>
+<text x="330" y="3820" font-size="13" font-weight="600" text-anchor="start" fill="#567086">authorized path</text>
+<line x1="510" y1="3815" x2="545" y2="3815" stroke="#c64b5c" stroke-width="3" marker-end="url(#arrowRed)"/>
+<text x="555" y="3820" font-size="13" font-weight="600" text-anchor="start" fill="#567086">denied / fallback</text>
+</svg>

@@ -20,7 +20,62 @@ The system is split into two primary operational lifecycle layers:
 * **Vector Database Engine (Elasticsearch):** Manages high-performance lexical search and dense vector search capabilities.
 * **Raw Object Storage Tier (MinIO):** S3-compatible enterprise file storage engine protecting source assets.
 * **Stateful Checkpoint Memory (Redis):** Tracks user session transactions, chat state limits, and short-term operational histories.
-* **Metadata & Logging Layer (MongoDB):** Long-term historical conversation store, deep audit log tracker, and analytics warehouse.
+* **Offline Evaluation Results (MongoDB):** Stores DeepEval benchmark inputs, retrieved chunks, scores, and judge explanations for later review. Conversation memory currently uses Elasticsearch and Redis.
+
+## 🔐 End-to-End Role-Based Access Control
+
+RBAC is enforced across the chat request path, from WebSocket authentication through document retrieval:
+
+1. The WebSocket gateway validates the JWT signature, issuer, audience, expiry, and role claims.
+2. Verified JWT roles are mapped through `app/configs/rbac_roles.yaml` to permitted document roles. Connections without valid permissions are rejected.
+3. Each Kafka request carries the verified identity and permissions in an HMAC-signed context. The retrieval router checks the signature, request age, and that permissions match the configured policy.
+4. Elasticsearch applies the permitted document-role filter to both BM25 and vector search, preventing unauthorized chunks from reaching reranking or answer synthesis.
+5. Conversation memory is stored and retrieved within a permission-derived scope, so memory created under a different access scope is not reused.
+
+The policy separates document-role-to-filename assignments (`roles_mapping`) from JWT-role-to-document-role permissions (`role_permissions`). See [the RBAC request and retrieval flow](docs/rbac_jwt_retrieval_flow.md) for a component-level walkthrough.
+
+### Test the authenticated WebSocket locally
+
+Start the application and its dependencies:
+
+```bash
+docker compose up -d --build
+```
+
+Generate a short-lived development JWT using a role configured in `app/configs/rbac_roles.yaml`:
+
+```bash
+docker compose run --rm --no-deps --entrypoint python retrieval-router \
+  -m app.security.create_test_token --role retail_banking_staff
+```
+
+In Postman, create a WebSocket request to `ws://localhost:8000/ws/rbac-smoke` and add this request header before connecting:
+
+```text
+Authorization: Bearer <paste-the-generated-token>
+```
+
+After connecting, send a message such as:
+
+```json
+{"message": "What are SBI NEFT charges?"}
+```
+
+The test-token command is restricted to local development and requires the development JWT settings in `app/configs/.env`. Do not use it as a production identity provider.
+
+## ⚡ Permission-Scoped Answer Cache
+
+The retrieval workflow uses Redis to cache successful answers for standalone knowledge queries. The lookup happens after query refinement and before retrieval. A cache hit returns the answer and its source chunks without repeating retrieval or synthesis. Queries that require conversation memory bypass the shared cache.
+
+Cache keys include the normalized refined query, permission-derived `memory_scope_id`, Elasticsearch index alias, and current model and retrieval settings. Users with the same effective document permissions can share cached results; different permission scopes use different keys. Entries expire after 15 minutes by default. Set `ANSWER_CACHE_TTL_SECONDS` to change the TTL, and bump `ANSWER_CACHE_VERSION` when prompts or answer behavior change.
+
+To see the cache working, connect to the authenticated WebSocket as described above and send the same standalone question twice. The first request should log `RAG answer cache miss`; the next should log `RAG answer cache hit`:
+
+```bash
+docker compose logs -f retrieval-router
+```
+
+Cache entries include retrieved source chunks and are stored in Redis. Protect Redis access as you would other application data. Evaluation runs should be interpreted with care when they use cached results, since the cache reuses the original retrieved context.
 
 ---
 
@@ -65,10 +120,10 @@ docker exec -it kafka kafka-topics --list --bootstrap-server localhost:9092
 
 **Expected Output:**
 ```text
-chat.requests
-chat.responses
-dsprawl.chunks
-dsprawl.embedded_chunks
+chat-requests
+chat-responses
+es.chunks
+es.embedded_chunks
 ```
 
 ### B. Verify Object Storage Buckets (MinIO)
@@ -90,7 +145,12 @@ python3 -m venv rag_chat_env
 source rag_chat_env/bin/activate  # On Windows use: rag_chat_env\Scripts\activate
 
 # 3. Install core production runtime dependencies
-pip install -r requirements.txt
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
+
+## If you want to reinstall all packages
+#pip install -r requirements.txt
 
 # 4. Run the docker image-
 docker compose up -d --build
@@ -107,6 +167,31 @@ docker compose down --remove-orphans -v
 docker volume prune --force
 ```
 
+## Retrieval
+## Manually create the retrieval kafka topics
+docker compose exec kafka kafka-topics \
+  --create --if-not-exists \
+  --bootstrap-server kafka:9092 \
+  --partitions 3 --replication-factor 1 \
+  --topic chat-requests
+
+docker compose exec kafka kafka-topics \
+  --create --if-not-exists \
+  --bootstrap-server kafka:9092 \
+  --partitions 3 --replication-factor 1 \
+  --topic chat-responses
+
+## Run the entire project with:
+docker compose up -d
+## Run ingestion only, along with its Kafka, Elasticsearch, and Redis dependencies:
+docker compose up -d app-worker
+## Run the chat/retrieval flow only, along with its dependencies:
+## 1st terminal
+docker compose up websocket 
+## 2nd terminal
+docker compose up retrieval-router
+## For routine restarts, use docker compose restart app-worker, docker compose restart websocket retrieval-router, or docker compose restart for everything. You don’t need --build unless the Dockerfile or dependencies changed.
+## For authenticated WebSocket testing, follow “Test the authenticated WebSocket locally” above.
 ---
 
 ## 💬 Interview Discussion Guide (How to explain this start)
@@ -114,4 +199,3 @@ docker volume prune --force
 When asked about your setup and initialization choices during technical rounds, highlight these architectural talking points:
 
 *"Instead of relying on unstable runtime anti-patterns like Kafka's default topic auto-creation or manual administrative setup, I engineered infrastructure-as-code automation directly into the compose lifecycle. I built autonomous setup containers that block execution until core storage and message brokers stabilize, programmatically injecting optimized partition topologies from day one. This guarantees that our data ingestion microservices map to decoupled, horizontally-scalable streams without configuration drift across development and deployment environments."*
-

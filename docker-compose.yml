@@ -12,17 +12,107 @@ services:
     depends_on:
       kafka:
         condition: service_started
+      kafka-setup:
+        condition: service_completed_successfully
       elasticsearch:
         condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
       - ./app/configs/.env
+    environment:
+      # Keep `docker compose up` safe by default. Set INGESTION_DRY_RUN=false
+      # explicitly when you intend to write data and swap the live ES alias.
+      INGESTION_DRY_RUN: "false"
+    volumes:
+      - ./:/workspace
+    command: ["python", "-m", "app.services.ingestion_service"]
+
+  # -----------------------------------------------------------------
+  # 1b. CHAT WEBSOCKET GATEWAY
+  # -----------------------------------------------------------------
+  websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      kafka-setup:
+        condition: service_completed_successfully
+    env_file:
+      - ./app/configs/.env
     volumes:
       - ./:/workspace
     ports:
       - "8000:8000"
-    command: ["python", "-m", "app.services.ingestion_service"]
+    command: ["python", "-u", "-m", "app.websocket_service.main"]
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------
+  # 1c. CHAT RETRIEVAL / LANGGRAPH ROUTER
+  # -----------------------------------------------------------------
+  retrieval-router:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      kafka-setup:
+        condition: service_completed_successfully
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./app/configs/.env
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-credentials.json
+    volumes:
+      - ./:/workspace
+      - hf-model-cache:/root/.cache/huggingface
+      - type: bind
+        source: ./app/configs/e2e-langragh-chatbot-510511-cb0dd6b38e63.json
+        target: /run/secrets/google-credentials.json
+        read_only: true
+        bind:
+          create_host_path: false
+    command:
+      - python
+      - -u
+      - -c
+      - "import asyncio; from app.router_service.request_response_router import RequestResponseRouter; asyncio.run(RequestResponseRouter().start())"
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------
+  # 1d. ON-DEMAND OFFLINE EVALUATION (not started by regular `up`)
+  # -----------------------------------------------------------------
+  evaluation-runner:
+    profiles: ["evaluation"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    env_file:
+      - ./app/configs/.env
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-credentials.json
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DATABASE: rag_evaluation
+      MONGO_COLLECTION: deepeval_results
+    volumes:
+      - ./:/workspace
+      - hf-model-cache:/root/.cache/huggingface
+      - type: bind
+        source: ./app/configs/e2e-langragh-chatbot-510511-cb0dd6b38e63.json
+        target: /run/secrets/google-credentials.json
+        read_only: true
+        bind:
+          create_host_path: false
+    entrypoint: ["python", "-m", "app.evaluation.run"]
 
   # -----------------------------------------------------------------
   # 2. VECTOR DATABASE ENGINE
@@ -99,10 +189,10 @@ services:
       cub kafka-ready -b kafka:9092 1 30;
       
       echo 'Creating production-grade topics...';
-      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic dsprawl.chunks;
-      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic dsprawl.embedded_chunks;
-      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat.requests;
-      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat.responses;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic es.chunks;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic es.embedded_chunks;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat-requests;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic chat-responses;
       
       echo 'All topics successfully provisioned!';
       " ]
@@ -171,11 +261,15 @@ services:
   # 5. STATE STATEFUL CHECKPOINT MEMORY
   # -----------------------------------------------------------------
   redis:
-    image: redis:7.4.11-alpine
+    # 🎯 FIX: Changed from vanilla alpine to redis-stack-server to include RedisJSON & RediSearch modules
+    image: redis/redis-stack-server
     container_name: redis
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # 🎯 FIX: Enabled appendonly for durable STM checkpoints and attached a named volume
+    command: ["redis-server", "--appendonly", "yes", "--protected-mode", "no"]
     ports:
       - "6379:6379"
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -190,7 +284,26 @@ services:
     depends_on:
       - redis
 
+  # -----------------------------------------------------------------
+  # 6. OFFLINE EVALUATION RESULT STORAGE
+  # -----------------------------------------------------------------
+  mongo:
+    profiles: ["evaluation"]
+    # MongoDB 7.0 is compatible with Docker Desktop's Linux 6.19 VM kernel.
+    # MongoDB 8.0.21–8.0.29 exits during startup on Linux kernels 6.19–7.0.13.
+    image: mongo:7.0
+    container_name: mongo
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   esdata:
   miniodata:
+  redisdata: # 🎯 FIX: Added persistent target volume boundary for local stm assets
   mongodata:
+  hf-model-cache:

@@ -1,18 +1,20 @@
 import asyncio
 import time
 from langgraph.graph import END, StateGraph
-from app.agents.chunking_agent import ChunkingAgent
-from app.agents.docx_extractor_agent import DocxExtractionAgent
-from app.agents.file_classifier_agent import FileClassifierAgent
-from app.agents.pdf_extractor_agent import PDFExtractorAgent
-from app.agents.pptx_extractor_agent import PPTXExtractorAgent
-from app.workflow.state import IngestionState
+from app.agents.ingestion_agents.chunking_agent import ChunkingAgent
+from app.agents.ingestion_agents.docx_extractor_agent import DocxExtractionAgent
+from app.agents.ingestion_agents.file_classifier_agent import FileClassifierAgent
+from app.agents.ingestion_agents.pdf_extractor_agent import PDFExtractorAgent
+from app.agents.ingestion_agents.pptx_extractor_agent import PPTXExtractorAgent
+from app.workflow.ingestion_state import IngestionState
 
 class IngestionWorkflow:
-    def __init__(self):
+    # 2. Accept an optional checkpointer during initialization
+    def __init__(self, checkpointer=None):
         self.workflow = StateGraph(IngestionState)
         self._build_graph()
-        self.compiled_graph = self.workflow.compile()
+        # 3. Pass the checkpointer to the compile method
+        self.compiled_graph = self.workflow.compile(checkpointer=checkpointer)
 
     async def _timed(self, agent_cls, state: IngestionState, stage: str) -> IngestionState:
         started = time.perf_counter()
@@ -87,6 +89,3 @@ class IngestionWorkflow:
 
     def compile(self):
         return self.compiled_graph
-
-# Exported compiled graph instance instance to match expected imports
-graph = IngestionWorkflow().compile()
