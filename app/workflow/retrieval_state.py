@@ -9,7 +9,11 @@ class RetrieverState(BaseModel):
     session_id: str
     query_id: str
     query: str
-    user_id: str = "default_user"
+    user_id: str = ""
+    user_roles: list[str] = Field(default_factory=list)
+    allowed_roles: list[str] = Field(default_factory=list)
+    memory_scope_id: str = ""
+    connection_id: str = ""
 
     intent: str | None = None
     intent_meta: dict[str, Any] = Field(default_factory=dict)

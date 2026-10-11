@@ -4,6 +4,8 @@ elasticsearch
 redis
 fastapi
 uvicorn
+PyJWT[crypto]>=2.10.1
+PyYAML>=6.0
 pydantic
 confluent-kafka
 minio

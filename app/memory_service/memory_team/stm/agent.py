@@ -51,6 +51,7 @@ async def update_session_stm(
     session_id: str,
     user_message: str,
     bot_response: str,
+    scope_id: str,
 ):
     """
     Update the session-level STM using the previous STM summary
@@ -61,6 +62,7 @@ async def update_session_stm(
     previous_stm = await get_stm(
         session_id=session_id,
         user_id=user_id,
+        scope_id=scope_id,
     )
 
     if not previous_stm:
@@ -115,6 +117,7 @@ Remember that the updated summary must represent the ENTIRE session.
         session_id=session_id,
         stm=updated_stm,
         user_id=user_id,
+        scope_id=scope_id,
     )
 
     # Keep the individual turn history as well.
@@ -124,6 +127,7 @@ Remember that the updated summary must represent the ENTIRE session.
         user_message=user_message,
         bot_message=bot_response,
         user_id=user_id,
+        scope_id=scope_id,
     )
 
     return updated_stm

@@ -53,15 +53,22 @@ async def _run_evaluation(
     query_id: str,
     session_id: str,
     user_id: str,
+    user_role: str,
     judge_model: str,
 ) -> dict[str, Any]:
     from app.workflow.retrieval_state import RetrieverState
     from app.workflow.retrieval_workflow import RetrievalWorkflow
+    from app.security.access_control import effective_permissions, memory_scope_id
+
+    allowed_roles = effective_permissions([user_role])
 
     state = RetrieverState(
         session_id=session_id,
         query_id=query_id,
         user_id=user_id,
+        user_roles=[user_role],
+        allowed_roles=allowed_roles,
+        memory_scope_id=memory_scope_id(allowed_roles),
         query=query,
     )
     result = await RetrievalWorkflow().ainvoke(state.model_dump())
@@ -199,6 +206,7 @@ async def _evaluate_queries(
     cases: list[dict[str, Any]],
     run_id: str,
     user_id: str,
+    user_role: str,
     judge_model: str,
     result_store,
     session_id: str | None = None,
@@ -218,6 +226,7 @@ async def _evaluate_queries(
                     query_id=query_id,
                     session_id=session_id or f"deepeval-{run_id}-{case_number}",
                     user_id=user_id,
+                    user_role=user_role,
                     judge_model=judge_model,
                 )
                 record = {
@@ -332,6 +341,11 @@ def main() -> int:
         help="User ID for memory lookup; defaults to an isolated ID for this run.",
     )
     parser.add_argument(
+        "--role",
+        default="bank_employee",
+        help="Configured RBAC role to evaluate as (default: bank_employee).",
+    )
+    parser.add_argument(
         "--model",
         default=None,
         help="Vertex Gemini judge model (defaults to GEMINI_MODEL or gemini-2.5-flash).",
@@ -362,6 +376,7 @@ def main() -> int:
                 cases=queries,
                 run_id=run_id,
                 user_id=user_id,
+                user_role=args.role,
                 judge_model=judge_model,
                 result_store=result_store,
                 session_id=args.session_id,

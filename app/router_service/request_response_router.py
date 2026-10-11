@@ -8,6 +8,10 @@ from app.memory_service.memory_team.ltm.ltm_service import store_conversation_to
 from app.memory_service.memory_team.stm.agent import (
     update_session_stm
 )
+from app.security.access_control import (
+    memory_scope_id,
+    verify_internal_request,
+)
 
 logger = LoggerFactory.get_logger(__name__)
 
@@ -37,7 +41,11 @@ class RequestResponseRouter:
 
             try:
                 request_data = json.loads(msg.value().decode('utf-8'))
-                logger.info(f"Received request: {request_data}")
+                logger.info(
+                    "Received chat request: session_id=%s connection_id=%s",
+                    request_data.get("session_id"),
+                    request_data.get("connection_id"),
+                )
 
                 # Process the request and generate a response
                 task = asyncio.create_task(
@@ -61,7 +69,15 @@ class RequestResponseRouter:
 
     async def _handle_request(self, request_data: dict):
         async with self.semaphore:
-            response_data = await self.process_request(request_data)
+            try:
+                response_data = await self.process_request(request_data)
+            except Exception:
+                logger.exception("Unable to process authenticated chat request")
+                response_data = {
+                    "session_id": request_data.get("session_id", ""),
+                    "connection_id": request_data.get("connection_id", ""),
+                    "response": "I couldn’t securely process that request. Please reconnect and try again.",
+                }
             response_topic = 'chat-responses'
             self.producer.produce(
                 "chat-responses",
@@ -73,15 +89,14 @@ class RequestResponseRouter:
             logger.info(f"Sent response: {response_data} to topic: {response_topic}")
 
     async def process_request(self, request_data:dict):
-        session_id = request_data["session_id"]
-        if not session_id:
-            logger.error("Missing session_id in request data")
-            return {"error": "Missing session_id"}
-        user_message = request_data["message"]
-        if not user_message:
-            logger.error("Missing message in request data")
-            return {"error": "Missing message"}
-        user_id = request_data.get("user_id","default_user")
+        # Kafka requests are accepted only when signed by the authenticated gateway.
+        signed_context = verify_internal_request(request_data)
+        session_id = signed_context["session_id"]
+        user_message = signed_context["message"]
+        user_id = signed_context["user_id"]
+        user_roles = signed_context["roles"]
+        allowed_roles = signed_context["allowed_roles"]
+        scope_id = memory_scope_id(allowed_roles)
         query_id = str(uuid.uuid4())
         
         ## Trigger Langraph Runtime
@@ -89,6 +104,10 @@ class RequestResponseRouter:
             "session_id": session_id,
             "query_id": query_id,
             "user_id": user_id,
+            "user_roles": user_roles,
+            "allowed_roles": allowed_roles,
+            "memory_scope_id": scope_id,
+            "connection_id": signed_context["connection_id"],
             "query": user_message,
             }
 
@@ -101,20 +120,26 @@ class RequestResponseRouter:
             session_id=session_id,
             user_message=user_message,
             bot_response=bot_response,
+            scope_id=scope_id,
         )
         await update_session_stm(
             user_id=user_id,
             session_id=session_id,
             user_message=user_message,
             bot_response=bot_response,
+            scope_id=scope_id,
         )
         return {
             "session_id": session_id,
+            "connection_id": signed_context["connection_id"],
             "query_id": query_id,
             "user_id": user_id,
             "response": result.get("response", ""),
             "intent": result.get("intent"),
-            "retrieved_chunks": result.get("retrieved_chunks", []),
+            "sources": [
+                {"file_name": chunk.get("file_name"), "chunk_id": chunk.get("chunk_id")}
+                for chunk in result.get("retrieved_chunks", [])
+            ],
         }
 
     

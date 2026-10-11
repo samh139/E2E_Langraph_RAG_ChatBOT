@@ -2,6 +2,8 @@
 # Production RBAC Explicit Document-to-Role Permissions Mapping
 # =====================================================================
 
+policy_version: 1
+
 roles_mapping:
   compliance_officer:
     - "RBI_KYC.pdf"
@@ -28,4 +30,11 @@ roles_mapping:
     - "Intelligent_Conversational_ChatBot_Article.docx"
     - "RetiralSettlements.pptx"
 
+# JWT roles are mapped to the document-role tags that may be retrieved.
+# Keep these exact-match defaults least-privilege; add inheritance deliberately.
+role_permissions:
+  compliance_officer: [compliance_officer]
+  retail_banking_staff: [retail_banking_staff]
+  corporate_banking_staff: [corporate_banking_staff]
+  bank_employee: [bank_employee]
 

@@ -135,8 +135,17 @@ class QueryRefinerAgent:
         ltm_context: list[dict[str, Any]] = []
         if session_id:
             stm_result, ltm_result = await asyncio.gather(
-                get_stm_summary(session_id=session_id, user_id=user_id),
-                retrieve_ltm_context(query=query, session_id=session_id, user_id=user_id),
+                get_stm_summary(
+                    session_id=session_id,
+                    user_id=user_id,
+                    scope_id=self.payload.memory_scope_id,
+                ),
+                retrieve_ltm_context(
+                    query=query,
+                    session_id=session_id,
+                    user_id=user_id,
+                    scope_id=self.payload.memory_scope_id,
+                ),
                 return_exceptions=True,
             )
             if isinstance(stm_result, BaseException):

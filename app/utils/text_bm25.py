@@ -25,19 +25,28 @@ class BM25Retriever:
         self.es = es or create_es_client()
         self.index = index or chunk_index_alias()
 
-    def search(self, query: str, top_k: int = 50) -> list[dict[str, Any]]:
+    def search(
+        self, query: str, allowed_roles: list[str], top_k: int = 50
+    ) -> list[dict[str, Any]]:
         query = query.strip()
-        if not query:
+        if not query or not allowed_roles:
             return []
 
         response = self.es.search(
             index=self.index,
             size=top_k,
             query={
-                "multi_match": {
-                    "query": query,
-                    "fields": ["content^4", "file_name^2", "file_type"],
-                    "type": "best_fields",
+                "bool": {
+                    "must": [
+                        {
+                            "multi_match": {
+                                "query": query,
+                                "fields": ["content^4", "file_name^2", "file_type"],
+                                "type": "best_fields",
+                            }
+                        }
+                    ],
+                    "filter": [{"terms": {"allowed_role": allowed_roles}}],
                 }
             },
             source={"excludes": ["embedding_vector"]},
@@ -57,6 +66,7 @@ class BM25Retriever:
                     "doc_id": source.get("doc_id"),
                     "file_name": source.get("file_name"),
                     "file_type": source.get("file_type"),
+                    "allowed_role": source.get("allowed_role"),
                     "content": content,
                     "content_hash": source.get("content_hash"),
                     "created_at": source.get("created_at"),

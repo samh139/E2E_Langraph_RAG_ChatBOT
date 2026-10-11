@@ -49,7 +49,9 @@ def rrf_merge(
                 candidate["ann_score"] = hit.get("ann_score", 0.0)
                 # Keep content and document metadata regardless of which list
                 # first contributed this chunk.
-                for key in ("doc_id", "file_name", "file_type", "content"):
+                for key in (
+                    "doc_id", "file_name", "file_type", "allowed_role", "content"
+                ):
                     candidate.setdefault(key, hit.get(key))
 
     return sorted(
@@ -84,7 +86,11 @@ class ChunkRetriever:
         self.bm25 = bm25 or BM25Retriever(es=self.es, index=self.index)
         self._cross_encoder = cross_encoder
 
-    def _ann(self, query_vector: list[float]) -> list[dict[str, Any]]:
+    def _ann(
+        self, query_vector: list[float], allowed_roles: list[str]
+    ) -> list[dict[str, Any]]:
+        if not allowed_roles:
+            return []
         response = self.es.search(
             index=self.index,
             size=self.candidate_k,
@@ -93,6 +99,7 @@ class ChunkRetriever:
                 "query_vector": query_vector,
                 "k": self.candidate_k,
                 "num_candidates": max(self.candidate_k * 3, 50),
+                "filter": {"terms": {"allowed_role": allowed_roles}},
             },
             source={"excludes": ["embedding_vector"]},
         )
@@ -111,6 +118,7 @@ class ChunkRetriever:
                     "doc_id": source.get("doc_id"),
                     "file_name": source.get("file_name"),
                     "file_type": source.get("file_type"),
+                    "allowed_role": source.get("allowed_role"),
                     "content": content,
                     "content_hash": source.get("content_hash"),
                     "created_at": source.get("created_at"),
@@ -133,17 +141,20 @@ class ChunkRetriever:
         self,
         query: str,
         query_vector: list[float],
+        allowed_roles: list[str],
     ) -> list[dict[str, Any]]:
         query = query.strip()
-        if not query:
+        if not query or not allowed_roles:
             return []
         if len(query_vector) != 768:
             raise ValueError(
                 f"Expected a 768-dimensional Ollama query vector; got {len(query_vector)}"
             )
 
-        bm25_hits = self.bm25.search(query, top_k=self.candidate_k)
-        ann_hits = self._ann(query_vector)
+        bm25_hits = self.bm25.search(
+            query, allowed_roles=allowed_roles, top_k=self.candidate_k
+        )
+        ann_hits = self._ann(query_vector, allowed_roles)
         candidates = rrf_merge(bm25_hits, ann_hits)[: self.candidate_k]
         if not candidates:
             return []

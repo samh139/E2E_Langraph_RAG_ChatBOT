@@ -36,8 +36,8 @@ banking information from the available documents."""
         if state.fallback_reason == "low_relevance":
             return {
                 "response": (
-                    "I couldn’t find a sufficiently relevant answer in the available "
-                    "documents. Could you rephrase the question or mention the bank or product?"
+                    "I can help with information available to your role. "
+                    "Would you like to ask about another banking topic?"
                 )
             }
         if state.fallback_reason == "retrieval_error":

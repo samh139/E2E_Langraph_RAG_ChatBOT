@@ -43,6 +43,16 @@ class RetrievalAgent:
                 "retrieval_passed": False,
                 "fallback_reason": "low_relevance",
             }
+        if not state.allowed_roles:
+            return {
+                "retrieved_chunks": [],
+                "retrieval_score": 0.0,
+                "retrieval_threshold": threshold,
+                "retrieval_passed": False,
+                "fallback_reason": "retrieval_error",
+                "retrieval_warning": "No authorized document roles were provided.",
+                "error": "No authorized document roles were provided.",
+            }
 
         model_name = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
         ollama_host = os.getenv(
@@ -77,6 +87,7 @@ class RetrievalAgent:
                 retriever.retrieve,
                 query,
                 query_vector,
+                state.allowed_roles,
             )
 
             score = float(candidates[0]["relevance_score"]) if candidates else 0.0

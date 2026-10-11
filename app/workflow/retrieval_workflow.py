@@ -1,4 +1,4 @@
-"""Route small talk directly; retrieve, gate, and synthesize knowledge queries."""
+"""Route small talk directly; retrieve knowledge with role filters before synthesis."""
 
 from __future__ import annotations
 

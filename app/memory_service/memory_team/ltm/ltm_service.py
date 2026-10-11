@@ -51,12 +51,18 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
 async def create_index_if_not_exists() -> None:
     """Create the LTM conversation index with fields used by lexical and KNN retrieval."""
     if await es.indices.exists(index=es_ltm_index):
+        # Legacy turns without a scope_id remain invisible to scoped memory searches.
+        await es.indices.put_mapping(
+            index=es_ltm_index,
+            properties={"scope_id": {"type": "keyword"}},
+        )
         return
 
     mappings = {
         "properties": {
             "user_id": {"type": "keyword"},
             "session_id": {"type": "keyword"},
+            "scope_id": {"type": "keyword"},
             "user_message": {"type": "text"},
             "bot_response": {"type": "text"},
             "user_embedding": {
@@ -109,7 +115,13 @@ def normalize_scores(items: List[Dict], score_key: str) -> None:
         for item in items:
             item[score_key] = (item.get(score_key, 0) - min_score) / (max_score - min_score)
 
-async def store_conversation_to_es(user_id: str, session_id: str, user_message: str, bot_response: str) -> str:
+async def store_conversation_to_es(
+    user_id: str,
+    session_id: str,
+    user_message: str,
+    bot_response: str,
+    scope_id: str,
+) -> str:
     print("Storing conversation to ES...")
     await create_index_if_not_exists()
     
@@ -121,6 +133,7 @@ async def store_conversation_to_es(user_id: str, session_id: str, user_message: 
     doc = {
         "user_id": user_id,
         "session_id": session_id,
+        "scope_id": scope_id,
         "user_message": user_message,
         "bot_response": bot_response,
         "user_embedding": user_emb,
@@ -152,7 +165,9 @@ def _parse_ltm_hits(hits: list[dict], score_key: str = "semantic_score") -> list
         })
     return candidates
 
-async def fetch_from_ltm( query: str, user_id: str, session_id: str, top_k: int = 10) -> list[dict]:
+async def fetch_from_ltm(
+    query: str, user_id: str, session_id: str, scope_id: str, top_k: int = 10
+) -> list[dict]:
     request_body = {
         "query": {
             "bool": {
@@ -161,7 +176,8 @@ async def fetch_from_ltm( query: str, user_id: str, session_id: str, top_k: int 
                 ],
                 "filter": [
                     {"term": {"user_id": user_id}},
-                    {"term": {"session_id": session_id}}
+                    {"term": {"session_id": session_id}},
+                    {"term": {"scope_id": scope_id}},
                 ]
             }
         },
@@ -172,7 +188,9 @@ async def fetch_from_ltm( query: str, user_id: str, session_id: str, top_k: int 
     res = await es.search(index=es_ltm_index, body=request_body)
     return _parse_ltm_hits(res["hits"]["hits"], score_key="bm_score")
 
-async def fetch_knn_from_ltm( query: str, user_id: str, session_id: str, top_k: int = 10) -> list[dict]:
+async def fetch_knn_from_ltm(
+    query: str, user_id: str, session_id: str, scope_id: str, top_k: int = 10
+) -> list[dict]:
     query_vec = (await embed_texts([query]))[0]
     
     request_body = {
@@ -184,7 +202,8 @@ async def fetch_knn_from_ltm( query: str, user_id: str, session_id: str, top_k: 
             "num_candidates": top_k * 5,
             "filter": [
                 {"term": {"user_id": user_id}},
-                {"term": {"session_id": session_id}}
+                {"term": {"session_id": session_id}},
+                {"term": {"scope_id": scope_id}},
             ]
         },
         "_source": {"excludes": ["user_embedding", "bot_embedding", "combined_embedding"]}
@@ -229,17 +248,24 @@ def rrf_fuse_ltm(bm25_list: list[dict], knn_list: list[dict], k: int = 60) -> li
     return fused_candidates
 
 async def retrieve_ltm_context( query: str, session_id: str, user_id: str ="12345",
-                        top_k_bm25: int = 10, top_k_knn: int = 10, top_n: int = 3) -> list[dict]:
+                        scope_id: str = "", top_k_bm25: int = 10,
+                        top_k_knn: int = 10, top_n: int = 3) -> list[dict]:
+    if not scope_id:
+        return []
     print("Retrieving LTM context...")
     await create_index_if_not_exists()
     
     # Step 1: Fetch BM25 candidates
-    bm25_candidates = await fetch_from_ltm(query, user_id, session_id, top_k=top_k_bm25)
+    bm25_candidates = await fetch_from_ltm(
+        query, user_id, session_id, scope_id, top_k=top_k_bm25
+    )
     normalize_scores(bm25_candidates, "bm_score")
     bm25_candidates.sort(key=lambda x: x["bm_score"], reverse=True)
 
     # Step 2: Fetch KNN candidates
-    knn_candidates = await fetch_knn_from_ltm(query, user_id, session_id, top_k=top_k_knn)
+    knn_candidates = await fetch_knn_from_ltm(
+        query, user_id, session_id, scope_id, top_k=top_k_knn
+    )
     normalize_scores(knn_candidates, "semantic_score")
     knn_candidates.sort(key=lambda x: x["semantic_score"], reverse=True)
 
