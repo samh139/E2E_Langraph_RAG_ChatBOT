@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.workflow.retrieval_state import RetrieverState
 from app.configs.llm_config import ask_gemini_structured, load_intent_taxonomy
+from app.security.pii_guardrail import redact_for_llm
 
 # Define a strict schema response for Gemini
 class IntentClassification(BaseModel):
@@ -56,7 +57,15 @@ INSTRUCTIONS:
         state = self.payload
         query = state.query.strip()
 
-        classification = await self._detect_intent(query)
+        try:
+            safe_query = redact_for_llm(query)
+        except Exception as exc:
+            # Do not send the raw message if the local privacy check is unavailable.
+            raise RuntimeError(
+                "Local privacy screening failed; refusing the classifier model call."
+            ) from exc
+
+        classification = await self._detect_intent(safe_query)
         if not isinstance(classification, dict):
             classification = {}
 
@@ -72,7 +81,8 @@ INSTRUCTIONS:
             "session_id": state.session_id,
             "query_id": state.query_id,
             "user_id": state.user_id,
-            "query": query,
+            # Carry the redacted version through the rest of this graph run.
+            "query": safe_query,
             "intent": intent,
             "intent_meta": {"confidence": confidence},
         }

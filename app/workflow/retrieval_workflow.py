@@ -11,6 +11,7 @@ from app.agents.retrieval_agents.small_talk_agent import SmallTalkAgent
 from app.agents.retrieval_agents.query_refiner_agent import QueryRefinerAgent
 from app.agents.retrieval_agents.retrieval_agent import RetrievalAgent
 from app.agents.retrieval_agents.synthesizer_agent import SynthesizerAgent
+from app.utils.answer_cache import cache_answer, get_cached_answer
 from app.workflow.retrieval_state import RetrieverState
 
 
@@ -37,7 +38,11 @@ class RetrievalWorkflow:
             },
         )
         workflow.add_edge("small_talk_agent", END)
-        workflow.add_edge("query_refiner", "retrieval_agent")
+        workflow.add_conditional_edges(
+            "query_refiner",
+            self.route_cache,
+            {"hit": END, "miss": "retrieval_agent"},
+        )
         workflow.add_conditional_edges(
             "retrieval_agent",
             self.route_retrieval,
@@ -76,7 +81,20 @@ class RetrievalWorkflow:
     @staticmethod
     async def query_refiner_agent(state: RetrieverState) -> dict[str, Any]:
         validated_state = RetrieverState.model_validate(state)
-        return await QueryRefinerAgent(payload=validated_state).execute()
+        refinement = await QueryRefinerAgent(payload=validated_state).execute()
+        # Follow-up answers can depend on private session memory, so never share them.
+        if refinement.get("should_refine"):
+            return refinement
+        cached = await get_cached_answer(
+            refinement.get("refined_query") or validated_state.query,
+            validated_state.memory_scope_id,
+        )
+        return {**refinement, **(cached or {})}
+
+    @staticmethod
+    def route_cache(state: RetrieverState) -> str:
+        state = RetrieverState.model_validate(state)
+        return "hit" if state.response and state.retrieval_passed else "miss"
 
     async def retrieval_agent(self, state: RetrieverState) -> dict[str, Any]:
         validated_state = RetrieverState.model_validate(state)
@@ -90,7 +108,26 @@ class RetrievalWorkflow:
     @staticmethod
     async def synthesizer_agent(state: RetrieverState) -> dict[str, Any]:
         validated_state = RetrieverState.model_validate(state)
-        return await SynthesizerAgent(payload=validated_state).execute()
+        result = await SynthesizerAgent(payload=validated_state).execute()
+        response = result.get("response")
+        if (
+            not validated_state.should_refine
+            and validated_state.retrieval_passed
+            and isinstance(response, str)
+            and response.strip()
+        ):
+            await cache_answer(
+                validated_state.refined_query or validated_state.query,
+                validated_state.memory_scope_id,
+                {
+                    **result,
+                    "retrieved_chunks": validated_state.retrieved_chunks,
+                    "retrieval_score": validated_state.retrieval_score,
+                    "retrieval_threshold": validated_state.retrieval_threshold,
+                    "retrieval_passed": True,
+                },
+            )
+        return result
 
     async def ainvoke(self, graph_input: dict[str, Any]) -> dict[str, Any]:
         """Run the compiled graph asynchronously for request-router callers."""

@@ -18,6 +18,8 @@ sentence-transformers
 pymongo
 uvicorn
 google-genai
+presidio-analyzer
+presidio-anonymizer
 langgraph-checkpoint-redis
 elasticsearch[async]
 deepeval

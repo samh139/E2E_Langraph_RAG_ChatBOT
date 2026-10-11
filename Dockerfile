@@ -22,7 +22,10 @@ COPY requirements.txt .
 
 # Install app dependencies (Sentence Transformers is used only for CrossEncoder reranking).
 RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+    pip --timeout 300 --retries 10 install -r requirements.txt
+
+# The configured Presidio English analyzer uses this spaCy model at runtime.
+RUN python -m spacy download en_core_web_sm
 
 ## If you want to reinstall all packages
 # RUN pip install -r requirements.txt
