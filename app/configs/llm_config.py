@@ -4,6 +4,7 @@ import json
 from typing import Dict, Any
 from google import genai
 from google.genai import types
+from app.observability_metrics import dependency_operation, record_model_tokens
 
 # 1. Point to your Service Account JSON file path
 # Ensure you set the path to your e2e-langragh...6b38e63.json credential file
@@ -26,6 +27,15 @@ _client = genai.Client(
 
 # Set your preferred Gemini model (e.g., gemini-2.5-flash for speed/classification)
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+
+def _record_gemini_usage(operation: str, response: Any) -> None:
+    """Record provider-reported token usage when Gemini returns it."""
+    usage = getattr(response, "usage_metadata", None)
+    if usage is None:
+        return
+    record_model_tokens(operation, "input", getattr(usage, "prompt_token_count", 0) or 0)
+    record_model_tokens(operation, "output", getattr(usage, "candidates_token_count", 0) or 0)
 
 
 async def close_gemini_client() -> None:
@@ -53,16 +63,18 @@ async def ask_gemini_structured(system_prompt: str, user_prompt: str, response_s
     matching the provided Pydantic schema.
     """
     try:
-        response = await _client.aio.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-                response_schema=response_schema,
-                temperature=0.1, # Keep it low for predictable classification
-            ),
-        )
+        with dependency_operation("gemini", "structured_generation"):
+            response = await _client.aio.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    response_mime_type="application/json",
+                    response_schema=response_schema,
+                    temperature=0.1, # Keep it low for predictable classification
+                ),
+            )
+        _record_gemini_usage("structured_generation", response)
         return json.loads(response.text)
     except Exception as e:
         print(f"Gemini API Error: {e}")
@@ -79,14 +91,16 @@ async def fire_fast_modal_request_chat(
     """
 
     try:
-        response = await _client.aio.models.generate_content(
-            model=model,
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=0.1,
-            ),
-        )
+        with dependency_operation("gemini", "answer_generation"):
+            response = await _client.aio.models.generate_content(
+                model=model,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.1,
+                ),
+            )
+        _record_gemini_usage("answer_generation", response)
 
         return response.text.strip()
 

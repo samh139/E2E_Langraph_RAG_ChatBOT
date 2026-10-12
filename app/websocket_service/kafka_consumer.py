@@ -2,6 +2,13 @@ import asyncio
 
 from confluent_kafka import Consumer
 import json
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
+from app.telemetry import configure_telemetry, extract_trace_context
+
+configure_telemetry("websocket")
+tracer = trace.get_tracer(__name__)
 
 consumer = Consumer({
     'bootstrap.servers': 'kafka:9092',
@@ -20,5 +27,17 @@ async def consume_loop(manager):
             print(f"Consumer error: {msg.error()}")
             continue
 
-        data = json.loads(msg.value().decode())
-        await manager.send(data["session_id"], data)
+        context = extract_trace_context(msg.headers())
+        with tracer.start_as_current_span(
+            "chat.websocket.response",
+            context=context,
+            record_exception=False,
+            set_status_on_exception=False,
+        ) as span:
+            try:
+                data = json.loads(msg.value().decode())
+                await manager.send(data["session_id"], data)
+            except Exception as exc:
+                span.set_attribute("error.type", type(exc).__name__)
+                span.set_status(Status(StatusCode.ERROR))
+                raise

@@ -1,8 +1,15 @@
 import asyncio
 import json
 import uuid
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 from app.app_logger import LoggerFactory
 from confluent_kafka import Consumer, Producer
+from app.telemetry import configure_telemetry, extract_trace_context, inject_trace_headers
+
+configure_telemetry("retrieval-router")
+tracer = trace.get_tracer(__name__)
+
 from app.workflow.retrieval_workflow import RetrievalWorkflow
 from app.memory_service.memory_team.ltm.ltm_service import store_conversation_to_es
 from app.memory_service.memory_team.stm.agent import (
@@ -49,7 +56,10 @@ class RequestResponseRouter:
 
                 # Process the request and generate a response
                 task = asyncio.create_task(
-                    self._handle_request(request_data)
+                    self._handle_request(
+                        request_data,
+                        extract_trace_context(msg.headers()),
+                    )
                 )
 
                 self.tasks.add(task)
@@ -67,26 +77,33 @@ class RequestResponseRouter:
         except Exception:
             logger.exception("Request handler task failed")
 
-    async def _handle_request(self, request_data: dict):
-        async with self.semaphore:
-            try:
-                response_data = await self.process_request(request_data)
-            except Exception:
-                logger.exception("Unable to process authenticated chat request")
-                response_data = {
-                    "session_id": request_data.get("session_id", ""),
-                    "connection_id": request_data.get("connection_id", ""),
-                    "response": "I couldn’t securely process that request. Please reconnect and try again.",
-                }
-            response_topic = 'chat-responses'
-            self.producer.produce(
-                "chat-responses",
-                key=response_data["session_id"],
-                value=json.dumps(response_data),
-            )
+    async def _handle_request(self, request_data: dict, trace_context=None):
+        with tracer.start_as_current_span(
+            "chat.request.process",
+            context=trace_context,
+            record_exception=False,
+            set_status_on_exception=False,
+        ) as span:
+            async with self.semaphore:
+                try:
+                    response_data = await self.process_request(request_data)
+                except Exception as exc:
+                    span.set_attribute("error.type", type(exc).__name__)
+                    span.set_status(Status(StatusCode.ERROR))
+                    logger.exception("Unable to process authenticated chat request")
+                    response_data = {
+                        "session_id": request_data.get("session_id", ""),
+                        "connection_id": request_data.get("connection_id", ""),
+                        "response": "I couldn’t securely process that request. Please reconnect and try again.",
+                    }
+                self.producer.produce(
+                    "chat-responses",
+                    key=response_data["session_id"],
+                    value=json.dumps(response_data),
+                    headers=inject_trace_headers(),
+                )
 
-            self.producer.flush()
-            logger.info(f"Sent response: {response_data} to topic: {response_topic}")
+                self.producer.flush()
 
     async def process_request(self, request_data:dict):
         # Kafka requests are accepted only when signed by the authenticated gateway.
@@ -111,7 +128,12 @@ class RequestResponseRouter:
             "query": user_message,
             }
 
-        result = await self.retrieval_workflow.ainvoke(graph_input)
+        with tracer.start_as_current_span(
+            "retrieval.workflow",
+            record_exception=False,
+            set_status_on_exception=False,
+        ):
+            result = await self.retrieval_workflow.ainvoke(graph_input)
 
         bot_response = result.get("response")
 

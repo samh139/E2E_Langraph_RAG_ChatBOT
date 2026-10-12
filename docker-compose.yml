@@ -38,8 +38,14 @@ services:
     depends_on:
       kafka-setup:
         condition: service_completed_successfully
+      otel-collector:
+        condition: service_started
     env_file:
       - ./app/configs/.env
+    environment:
+      OTEL_SERVICE_NAME: websocket
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
     volumes:
       - ./:/workspace
     ports:
@@ -61,10 +67,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     env_file:
       - ./app/configs/.env
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-credentials.json
+      OTEL_SERVICE_NAME: retrieval-router
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
     volumes:
       - ./:/workspace
       - hf-model-cache:/root/.cache/huggingface
@@ -113,6 +124,37 @@ services:
         bind:
           create_host_path: false
     entrypoint: ["python", "-m", "app.evaluation.run"]
+
+  # -----------------------------------------------------------------
+  # 1e. LOCAL OPENTELEMETRY TRACE PIPELINE
+  # -----------------------------------------------------------------
+  otel-collector:
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.162.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+    depends_on:
+      - jaeger
+    restart: unless-stopped
+
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.22.0
+    ports:
+      - "16686:16686"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+    restart: unless-stopped
 
   # -----------------------------------------------------------------
   # 2. VECTOR DATABASE ENGINE
@@ -307,3 +349,4 @@ volumes:
   redisdata: # 🎯 FIX: Added persistent target volume boundary for local stm assets
   mongodata:
   hf-model-cache:
+  prometheusdata:

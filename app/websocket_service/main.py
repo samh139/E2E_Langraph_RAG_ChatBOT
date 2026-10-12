@@ -7,6 +7,15 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from dotenv import load_dotenv
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
+load_dotenv(Path(__file__).resolve().parents[1] / "configs" / ".env")
+
+from app.telemetry import configure_telemetry, inject_trace_headers
+
+configure_telemetry("websocket")
+tracer = trace.get_tracer(__name__)
 
 from app.security.access_control import (
     effective_permissions,
@@ -15,8 +24,6 @@ from app.security.access_control import (
 )
 from app.websocket_service.kafka_consumer import consume_loop
 from app.websocket_service.kafka_producer import send_message
-
-load_dotenv(Path(__file__).resolve().parents[1] / "configs" / ".env")
 
 app = FastAPI()
 
@@ -112,13 +119,28 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             if active["principal"]["expires_at"] <= int(time.time()):
                 await websocket.close(code=4401, reason="Authentication token expired")
                 break
-            signed_context = sign_internal_request(
-                session_id=session_id,
-                connection_id=connection_id,
-                message=message,
-                principal=active["principal"],
-            )
-            send_message("chat-requests", key=session_id, value=signed_context)
+            with tracer.start_as_current_span(
+                "chat.websocket.message",
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as span:
+                try:
+                    signed_context = sign_internal_request(
+                        session_id=session_id,
+                        connection_id=connection_id,
+                        message=message,
+                        principal=active["principal"],
+                    )
+                    send_message(
+                        "chat-requests",
+                        key=session_id,
+                        value=signed_context,
+                        headers=inject_trace_headers(),
+                    )
+                except Exception as exc:
+                    span.set_attribute("error.type", type(exc).__name__)
+                    span.set_status(Status(StatusCode.ERROR))
+                    raise
     except WebSocketDisconnect:
         manager.disconnect(session_id)
         print(f"Client disconnected: {session_id}")
