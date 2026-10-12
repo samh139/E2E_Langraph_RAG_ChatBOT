@@ -8,6 +8,7 @@ from typing import Any
 from elasticsearch import Elasticsearch
 
 from app.utils.retrieval_config import chunk_index_alias, create_es_client
+from app.observability_metrics import dependency_operation, record_chunks
 
 
 logger = logging.getLogger(__name__)
@@ -32,25 +33,26 @@ class BM25Retriever:
         if not query or not allowed_roles:
             return []
 
-        response = self.es.search(
-            index=self.index,
-            size=top_k,
-            query={
-                "bool": {
-                    "must": [
-                        {
-                            "multi_match": {
-                                "query": query,
-                                "fields": ["content^4", "file_name^2", "file_type"],
-                                "type": "best_fields",
+        with dependency_operation("elasticsearch", "bm25_search"):
+            response = self.es.search(
+                index=self.index,
+                size=top_k,
+                query={
+                    "bool": {
+                        "must": [
+                            {
+                                "multi_match": {
+                                    "query": query,
+                                    "fields": ["content^4", "file_name^2", "file_type"],
+                                    "type": "best_fields",
+                                }
                             }
-                        }
-                    ],
-                    "filter": [{"terms": {"allowed_role": allowed_roles}}],
-                }
-            },
-            source={"excludes": ["embedding_vector"]},
-        )
+                        ],
+                        "filter": [{"terms": {"allowed_role": allowed_roles}}],
+                    }
+                },
+                source={"excludes": ["embedding_vector"]},
+            )
 
         hits = response.get("hits", {}).get("hits", [])
         results: list[dict[str, Any]] = []
@@ -75,6 +77,7 @@ class BM25Retriever:
             )
 
         logger.info("BM25 returned %d chunks from %s", len(results), self.index)
+        record_chunks("bm25_candidates", len(results))
         return results
 
     def close(self) -> None:

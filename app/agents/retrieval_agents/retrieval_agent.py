@@ -3,12 +3,18 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from functools import lru_cache
 from typing import Any
 
 import ollama
 
 from app.utils.chunk_retriever import ChunkRetriever
+from app.observability_metrics import (
+    dependency_operation,
+    record_fallback,
+    record_retrieval,
+)
 from app.workflow.retrieval_state import RetrieverState
 
 
@@ -60,14 +66,16 @@ class RetrievalAgent:
         )
         ollama_timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180"))
         retriever: ChunkRetriever | None = None
+        started = time.perf_counter()
 
         try:
             ollama_client = _get_ollama_client(ollama_host, ollama_timeout)
-            response = await asyncio.to_thread(
-                ollama_client.embed,
-                model=model_name,
-                input=query,
-            )
+            with dependency_operation("ollama", "query_embedding"):
+                response = await asyncio.to_thread(
+                    ollama_client.embed,
+                    model=model_name,
+                    input=query,
+                )
             vectors = [list(vector) for vector in response.embeddings]
             if len(vectors) != 1:
                 raise RuntimeError(
@@ -92,6 +100,10 @@ class RetrievalAgent:
 
             score = float(candidates[0]["relevance_score"]) if candidates else 0.0
             passed = bool(candidates) and score >= threshold
+            outcome = "success" if passed else "low_relevance" if candidates else "no_results"
+            record_retrieval(outcome, time.perf_counter() - started, score)
+            if not passed:
+                record_fallback("low_relevance")
             logger.info(
                 "Retrieval completed: query=%r candidates=%d score=%.4f threshold=%.4f passed=%s",
                 query,
@@ -110,6 +122,8 @@ class RetrievalAgent:
                 "error": None,
             }
         except Exception as exc:
+            record_retrieval("error", time.perf_counter() - started)
+            record_fallback("retrieval_error")
             logger.exception("Retrieval failed")
             return {
                 "retrieved_chunks": [],

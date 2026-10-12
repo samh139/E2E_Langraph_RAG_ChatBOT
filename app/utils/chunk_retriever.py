@@ -12,6 +12,7 @@ from elasticsearch import Elasticsearch
 
 from app.utils.retrieval_config import chunk_index_alias, create_es_client
 from app.utils.text_bm25 import BM25Retriever
+from app.observability_metrics import dependency_operation, record_chunks
 
 
 logger = logging.getLogger(__name__)
@@ -91,18 +92,19 @@ class ChunkRetriever:
     ) -> list[dict[str, Any]]:
         if not allowed_roles:
             return []
-        response = self.es.search(
-            index=self.index,
-            size=self.candidate_k,
-            knn={
-                "field": "embedding_vector",
-                "query_vector": query_vector,
-                "k": self.candidate_k,
-                "num_candidates": max(self.candidate_k * 3, 50),
-                "filter": {"terms": {"allowed_role": allowed_roles}},
-            },
-            source={"excludes": ["embedding_vector"]},
-        )
+        with dependency_operation("elasticsearch", "ann_search"):
+            response = self.es.search(
+                index=self.index,
+                size=self.candidate_k,
+                knn={
+                    "field": "embedding_vector",
+                    "query_vector": query_vector,
+                    "k": self.candidate_k,
+                    "num_candidates": max(self.candidate_k * 3, 50),
+                    "filter": {"terms": {"allowed_role": allowed_roles}},
+                },
+                source={"excludes": ["embedding_vector"]},
+            )
 
         hits = response.get("hits", {}).get("hits", [])
         results: list[dict[str, Any]] = []
@@ -126,6 +128,7 @@ class ChunkRetriever:
                 }
             )
         logger.info("ANN returned %d chunks from %s", len(results), self.index)
+        record_chunks("ann_candidates", len(results))
         return results
 
     def _get_cross_encoder(self):
@@ -156,6 +159,7 @@ class ChunkRetriever:
         )
         ann_hits = self._ann(query_vector, allowed_roles)
         candidates = rrf_merge(bm25_hits, ann_hits)[: self.candidate_k]
+        record_chunks("rrf_candidates", len(candidates))
         if not candidates:
             return []
 
@@ -171,6 +175,7 @@ class ChunkRetriever:
             raise RuntimeError(
                 f"Reranker returned {len(raw_scores)} scores for {len(candidates)} chunks"
             )
+        record_chunks("reranked", len(raw_scores))
 
         for candidate, raw_score in zip(candidates, raw_scores, strict=True):
             candidate["relevance_score"] = _sigmoid(float(raw_score))
@@ -178,7 +183,9 @@ class ChunkRetriever:
         candidates.sort(key=lambda item: item["relevance_score"], reverse=True)
         # Return source chunks with scores for the gateway/logging; no cluster
         # summaries or synthetic documents are created here.
-        return candidates[: self.top_k]
+        results = candidates[: self.top_k]
+        record_chunks("returned", len(results))
+        return results
 
     def close(self) -> None:
         if self._owns_es:

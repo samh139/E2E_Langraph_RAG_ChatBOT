@@ -7,11 +7,13 @@ import json
 import logging
 import os
 import re
+import time
 from typing import Any
 
 from app.configs.llm_config import GEMINI_MODEL
 from app.memory_service.memory_team.stm.store import redis_client
 from app.utils.retrieval_config import chunk_index_alias
+from app.observability_metrics import dependency_operation, record_cache
 
 
 logger = logging.getLogger(__name__)
@@ -47,16 +49,23 @@ async def get_cached_answer(query: str, memory_scope_id: str) -> dict[str, Any] 
     key = _cache_key(query, memory_scope_id)
     if key is None:
         return None
+    started = time.perf_counter()
+    outcome = "miss"
     try:
-        value = await redis_client.get(key)
+        with dependency_operation("redis", "answer_cache_get"):
+            value = await redis_client.get(key)
         if value:
             logger.info("RAG answer cache hit")
+            outcome = "hit"
             return json.loads(value)
         logger.info("RAG answer cache miss")
         return None
     except Exception:
+        outcome = "error"
         logger.warning("Answer cache read failed; continuing with retrieval", exc_info=True)
         return None
+    finally:
+        record_cache("lookup", outcome, time.perf_counter() - started)
 
 
 async def cache_answer(
@@ -67,9 +76,15 @@ async def cache_answer(
     key = _cache_key(query, memory_scope_id)
     if key is None:
         return
+    started = time.perf_counter()
+    outcome = "success"
     try:
         ttl_seconds = max(1, int(os.getenv("ANSWER_CACHE_TTL_SECONDS", "900")))
-        await redis_client.set(key, json.dumps(result), ex=ttl_seconds)
+        with dependency_operation("redis", "answer_cache_set"):
+            await redis_client.set(key, json.dumps(result), ex=ttl_seconds)
     except Exception:
+        outcome = "error"
         # Cache problems must not fail an otherwise successful chat request.
         logger.warning("Answer cache write failed", exc_info=True)
+    finally:
+        record_cache("write", outcome, time.perf_counter() - started)
