@@ -29,6 +29,12 @@ print(
 )
 
 
+async def close_ltm_clients() -> None:
+    """Close shared LTM clients when running a one-shot command such as evaluation."""
+    await es.close()
+    await EMBEDDING_CLIENT.close()
+
+
 async def embed_texts(texts: list[str]) -> list[list[float]]:
     """Embed texts with the same Ollama model used for indexed documents."""
     if not texts:

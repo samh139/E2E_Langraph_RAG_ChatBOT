@@ -18,7 +18,7 @@ from app.workflow.retrieval_state import RetrieverState
 class RetrievalWorkflow:
     """Classifier → small talk, or refiner → hybrid retrieval → answer/fallback."""
 
-    def __init__(self, top_k: int = 5) -> None:
+    def __init__(self, top_k: int = 5, checkpointer=None) -> None:
         self.top_k = top_k
         workflow = StateGraph(RetrieverState)
 
@@ -52,7 +52,7 @@ class RetrievalWorkflow:
             },
         )
         workflow.add_edge("synthesizer_agent", END)
-        self.compiled_graph = workflow.compile()
+        self.compiled_graph = workflow.compile(checkpointer=checkpointer)
 
     @staticmethod
     async def classifier_agent(state: RetrieverState) -> dict[str, Any]:

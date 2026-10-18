@@ -1,16 +1,19 @@
 import asyncio
+import os
 import json
 import uuid
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from app.app_logger import LoggerFactory
 from confluent_kafka import Consumer, Producer
+from langgraph.checkpoint.redis.aio import AsyncRedisSaver
 from app.telemetry import configure_telemetry, extract_trace_context, inject_trace_headers
 
 configure_telemetry("retrieval-router")
 tracer = trace.get_tracer(__name__)
 
 from app.workflow.retrieval_workflow import RetrievalWorkflow
+from app.workflow.retrieval_state import RetrieverState
 from app.memory_service.memory_team.ltm.ltm_service import store_conversation_to_es
 from app.memory_service.memory_team.stm.agent import (
     update_session_stm
@@ -33,10 +36,27 @@ class RequestResponseRouter:
         self.consumer.subscribe(['chat-requests'])
         self.semaphore = asyncio.Semaphore(max_concurrency)
         self.tasks = set()
-        self.retrieval_workflow = RetrievalWorkflow()
+        self.retrieval_workflow = None
         # self.pending_requests:dict[str, asyncio.Future] = {}
 
     async def start(self):
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        checkpoint_ttl_minutes = int(
+            os.getenv("LANGGRAPH_CHECKPOINT_TTL_MINUTES", "1440")
+        )
+        async with AsyncRedisSaver.from_conn_string(
+            redis_url,
+            ttl={"default_ttl": checkpoint_ttl_minutes, "refresh_on_read": True},
+        ) as checkpointer:
+            await checkpointer.setup()
+            self.retrieval_workflow = RetrievalWorkflow(checkpointer=checkpointer)
+            logger.info(
+                "Retrieval LangGraph Redis checkpointing enabled; TTL=%s minutes",
+                checkpoint_ttl_minutes,
+            )
+            await self._consume_requests()
+
+    async def _consume_requests(self):
         while True:
             msg = self.consumer.poll(1.0)
             if msg is None:
@@ -117,23 +137,26 @@ class RequestResponseRouter:
         query_id = str(uuid.uuid4())
         
         ## Trigger Langraph Runtime
-        graph_input = {
-            "session_id": session_id,
-            "query_id": query_id,
-            "user_id": user_id,
-            "user_roles": user_roles,
-            "allowed_roles": allowed_roles,
-            "memory_scope_id": scope_id,
-            "connection_id": signed_context["connection_id"],
-            "query": user_message,
-            }
+        graph_input = RetrieverState(
+            session_id=session_id,
+            query_id=query_id,
+            user_id=user_id,
+            user_roles=user_roles,
+            allowed_roles=allowed_roles,
+            memory_scope_id=scope_id,
+            connection_id=signed_context["connection_id"],
+            query=user_message,
+        ).model_dump()
 
         with tracer.start_as_current_span(
             "retrieval.workflow",
             record_exception=False,
             set_status_on_exception=False,
         ):
-            result = await self.retrieval_workflow.ainvoke(graph_input)
+            result = await self.retrieval_workflow.ainvoke(
+                graph_input,
+                config={"configurable": {"thread_id": query_id}},
+            )
 
         bot_response = result.get("response")
 

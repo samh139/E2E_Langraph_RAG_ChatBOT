@@ -1,12 +1,17 @@
 import json
 import os
+import time
 from pathlib import Path
 
 import ollama
 from confluent_kafka import Consumer, KafkaError, Producer, TopicPartition
 from dotenv import load_dotenv
 
-from app.utils.kafka_delivery import produce_confirmed
+from app.utils.kafka_delivery import (
+    produce_confirmed,
+    publish_dead_letter,
+    retry_settings,
+)
 
 
 load_dotenv(Path(__file__).resolve().parents[1] / "configs" / ".env")
@@ -26,6 +31,9 @@ class EmbedWorker:
         self.input_topic = os.getenv("KAFKA_CHUNKS_TOPIC", "es.chunks")
         self.output_topic = os.getenv(
             "KAFKA_EMBEDDED_TOPIC", "es.embedded_chunks"
+        )
+        self.dead_letter_topic = os.getenv(
+            "KAFKA_CHUNKS_DLQ_TOPIC", f"{self.input_topic}.dlq"
         )
 
         self.model_name = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
@@ -53,6 +61,7 @@ class EmbedWorker:
                 "bootstrap.servers": self.kafka_bootstrap,
                 "acks": "all",
                 "linger.ms": 5,
+                "enable.idempotence": True,
             }
         )
 
@@ -106,18 +115,48 @@ class EmbedWorker:
         return chunk
 
     def process_batch(self, messages: list) -> int:
-        valid_messages = []
+        completed_messages = []
         chunks = []
         for message in messages:
-            chunk = self._parse_message(message)
+            try:
+                chunk = self._parse_message(message)
+            except ValueError as exc:
+                publish_dead_letter(
+                    self.producer,
+                    topic=self.dead_letter_topic,
+                    message=message,
+                    stage="embedding_input_validation",
+                    error=exc,
+                )
+                completed_messages.append(message)
+                continue
             if chunk is not None:
-                valid_messages.append(message)
+                completed_messages.append(message)
                 chunks.append(chunk)
 
         if not chunks:
+            self._commit_messages(completed_messages)
             return 0
 
-        embeddings = self.get_embeddings_batch([chunk["content"] for chunk in chunks])
+        attempts, delay, max_delay = retry_settings()
+        for attempt in range(1, attempts + 1):
+            try:
+                embeddings = self.get_embeddings_batch(
+                    [chunk["content"] for chunk in chunks]
+                )
+                break
+            except Exception as exc:
+                if attempt == attempts:
+                    raise RuntimeError(
+                        f"Ollama embedding failed after {attempts} attempts; "
+                        "source offsets remain uncommitted for replay"
+                    ) from exc
+                print(
+                    f"[!] Ollama embedding attempt {attempt}/{attempts} failed: "
+                    f"{exc}. Retrying in {delay:.1f}s."
+                )
+                time.sleep(delay)
+                delay = min(max_delay, max(0.1, delay * 2))
         if len(embeddings) != len(chunks):
             # Defensive check: never commit inputs if any embedding is missing.
             raise RuntimeError(
@@ -137,8 +176,12 @@ class EmbedWorker:
         # Commit each partition's highest processed offset only after all of its
         # output records have been confirmed. A crash before this can cause
         # duplicate output, so downstream indexing should remain idempotent by chunk_id.
+        self._commit_messages(completed_messages)
+        return len(chunks)
+
+    def _commit_messages(self, messages: list) -> None:
         highest_offsets: dict[tuple[str, int], int] = {}
-        for message in valid_messages:
+        for message in messages:
             partition_key = (message.topic(), message.partition())
             highest_offsets[partition_key] = max(
                 highest_offsets.get(partition_key, -1), message.offset()
@@ -148,8 +191,8 @@ class EmbedWorker:
             TopicPartition(topic, partition, offset + 1)
             for (topic, partition), offset in highest_offsets.items()
         ]
-        self.consumer.commit(offsets=offsets, asynchronous=False)
-        return len(chunks)
+        if offsets:
+            self.consumer.commit(offsets=offsets, asynchronous=False)
 
     def run(self) -> None:
         self.consumer.subscribe([self.input_topic])

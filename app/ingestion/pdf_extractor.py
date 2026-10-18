@@ -1,22 +1,16 @@
-from pathlib import Path
 import pymupdf
-from datetime import datetime, timezone
-from app.workflow.ingestion_state import IngestionState
 from app.llm.llm_client import OllamaClient
 from app.app_logger import LoggerFactory
 
 
-class PDFExtractorAgent:
+class PDFExtractor:
 
     def __init__(self):
         self.ollama_cloud = OllamaClient()
         self.logger = LoggerFactory.get_logger(__name__)
 
-    # FIXED: Return type hint set to dict to match the state patch layout contract
-    def execute(self, state: IngestionState) -> dict:
-        file_path = state.file_path
-        run_id = state.run_id 
-        self.logger.info(f"[PDF Extractor] Processing: {file_path} | Run ID: {run_id}")
+    def extract(self, file_path: str) -> dict:
+        self.logger.info(f"[PDF Extractor] Processing: {file_path}")
 
         extracted_text = []  
         page_metadata = []   
@@ -202,38 +196,13 @@ class PDFExtractorAgent:
         final_text = "\n\n".join(extracted_text)
         self.logger.info(f"[PDF Extractor] Done. Pages={len(page_metadata)} | Elements={len(elements)}")
 
-        # Build metadata dictionary patch structure
         extraction_metadata = {
             "page_count": len(page_metadata),
             "pages": page_metadata,
             "elements": elements,
         }
 
-        # # Safe local DB saving mechanism
-        # try:
-        #     # Reconstruct dictionary structure manually to keep MongoDB saves working cleanly
-        #     mongo_payload = {
-        #         "run_id": run_id,
-        #         "file_path": file_path,
-        #         "file_name": state.file_name,
-        #         "file_extension": state.file_extension,
-        #         "mime_type": state.mime_type,
-        #         "file_type": state.file_type,
-        #         "extracted_text": final_text,
-        #         "extraction_metadata": extraction_metadata,
-        #         "status": "extracted",
-        #         "error": None
-        #     }
-        #     mongo_id = StorageService.save_extracted_document(mongo_payload, run_id=run_id)
-        #     self.logger.info(f"[PDF Extractor] Successfully persisted data to MongoDB. Doc Reference ID: {mongo_id}")
-        # except Exception as storage_err:
-        #     self.logger.error(f"[PDF Extractor Storage Error] Failed to write out to local database: {storage_err}")
-
-        # CORRECT: Returns a clean state patch dictionary for LangGraph to merge automatically
         return {
-            "run_id": run_id,
             "extracted_text": final_text,
             "extraction_metadata": extraction_metadata,
-            "status": "extracted",
-            "error": None
         }

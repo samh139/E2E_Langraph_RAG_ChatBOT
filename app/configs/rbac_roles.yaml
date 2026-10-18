@@ -9,7 +9,6 @@ roles_mapping:
     - "RBI_KYC.pdf"
     - "RBI_KYC_FQA.pdf"
     - "RBI_CUSTOMER_SERVICES.pdf"
-    - "AML Investigation Scenarios_v1.6 (1).pptx"
     
   retail_banking_staff:
     - "SBI_charges.pdf"
@@ -28,7 +27,6 @@ roles_mapping:
   bank_employee:
     - "SBI_HDFC_RBI_KnowledgeBase.pdf"
     - "Intelligent_Conversational_ChatBot_Article.docx"
-    - "RetiralSettlements.pptx"
 
 # JWT roles are mapped to the document-role tags that may be retrieved.
 # Keep these exact-match defaults least-privilege; add inheritance deliberately.

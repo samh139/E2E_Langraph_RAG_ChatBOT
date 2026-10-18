@@ -2,18 +2,19 @@ import os
 import sys
 import time
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
+import asyncio
 from dotenv import load_dotenv
 
 # Set paths for standalone scripts workspace configurations
-ROOT_DIR = Path(__file__).resolve().parents[1]
+ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
 
 # Load configurations cleanly using python-dotenv
 ENV_PATH = ROOT_DIR / "app" / "config" / "secrets.env"
 load_dotenv(dotenv_path=ENV_PATH)
 
-from app.ingestion.services.ingestion_producer import ProductionIngestionCoordinator
+from app.services.ingestion_service import IngestionService
+from app.utils.file_utils import get_file_type
 
 def run_bulk_ingest(target_directory: str):
     print("====================================================")
@@ -25,31 +26,28 @@ def run_bulk_ingest(target_directory: str):
         print(f"[X] Staging directory path does not exist: {target_directory}")
         return
 
-    # Scan for supported document patterns matching our extraction handlers
-    supported_extensions = {'.pdf', '.docx', '.pptx'}
-    files_to_process = [
-        str(f) for f in dir_path.iterdir() 
-        if f.is_file() and f.suffix.lower() in supported_extensions
-    ]
+    files_to_process = []
+    for path in dir_path.iterdir():
+        if not path.is_file():
+            continue
+        try:
+            get_file_type(str(path))
+            files_to_process.append(str(path))
+        except ValueError:
+            continue
 
     if not files_to_process:
         print("[*] No processing candidates found inside folder.")
         return
 
     print(f"[*] Located {len(files_to_process)} target documents for pipeline ingestion.")
-    coordinator = ProductionIngestionCoordinator()
-
-    # Production Threading Framework: Runs 4 extractions simultaneously 
-    MAX_WORKERS = 4 
-    print(f"[*] Spawning Asynchronous Execution Pool [Workers: {MAX_WORKERS}]")
-    
     start_time = time.time()
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        executor.map(coordinator.process_single_file, files_to_process)
+    service = IngestionService()
+    processed = asyncio.run(service.bulk_ingest(target_directory))
 
     duration = time.time() - start_time
     print("====================================================")
-    print(f"✨ BATCH INGESTION WORKFLOW COMPLETE. Processing Duration: {duration:.2f}s")
+    print(f"✨ BATCH INGESTION COMPLETE. Processed {processed} documents in {duration:.2f}s")
     print("====================================================")
 
 if __name__ == "__main__":

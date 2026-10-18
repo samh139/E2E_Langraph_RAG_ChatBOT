@@ -8,7 +8,7 @@ How can I replace a damaged debit card?
 Are ATM fees different for other banks?
 ```
 
-The repository includes three practice cases in `app/evaluation/golden_dataset.jsonl`. Each JSONL row contains an `id`, `input`, `expected_output`, `source_documents`, and official SBI `source_url`.
+The repository includes three practice cases in `app/evaluation/golden_dataset.jsonl`. Each JSONL row contains an `id`, `input`, `expected_output`, `source_documents`, an optional `role`, and official SBI `source_url`. A case-level role lets one benchmark cover documents assigned to different RBAC roles; cases without it use the CLI `--role` value.
 
 For golden cases with a non-empty `expected_output`, the runner scores Faithfulness, Answer Relevancy, Contextual Relevancy, Contextual Precision, Contextual Recall, and Answer Correctness (implemented with DeepEval `GEval`). Plain-text query files do not include references, so the three reference-based metrics are recorded as skipped for those cases.
 

@@ -77,6 +77,13 @@ docker compose logs -f retrieval-router
 
 Cache entries include retrieved source chunks and are stored in Redis. Protect Redis access as you would other application data. Evaluation runs should be interpreted with care when they use cached results, since the cache reuses the original retrieved context.
 
+The retrieval LangGraph is compiled with `AsyncRedisSaver` in the live router.
+Each query uses its own `thread_id` (`query_id`) so checkpoint state cannot leak
+between turns or authorization scopes; the conversation memory remains in the
+existing STM/LTM stores. Checkpoints expire after 24 hours by default. Set
+`LANGGRAPH_CHECKPOINT_TTL_MINUTES` to change the retention period. Redis
+checkpointer indices are initialized when the router starts.
+
 ---
 
 ## 🚀 Quick Start Deployment Guide
@@ -118,13 +125,36 @@ Confirm that the platform's four core system topics were explicitly established 
 docker exec -it kafka kafka-topics --list --bootstrap-server localhost:9092
 ```
 
-**Expected Output:**
+**Expected Output includes:**
 ```text
 chat-requests
 chat-responses
 es.chunks
+es.chunks.dlq
 es.embedded_chunks
+es.embedded_chunks.dlq
 ```
+
+### Embedding and indexing recovery
+
+The embedding and indexing consumers use manual Kafka commits. The embed worker
+commits a source chunk only after its vector is confirmed in Kafka; the indexer
+commits only after Elasticsearch accepts the document. Both use `chunk_id` as
+the Elasticsearch document ID, so replay after a crash is idempotent.
+
+Transient Ollama and Elasticsearch failures are retried with exponential backoff.
+After retries are exhausted, the worker exits without committing that source
+offset, so the message remains available to the same consumer group on restart.
+Malformed records and permanent Elasticsearch 4xx rejections are copied to
+their respective DLQ topics before the source offset is committed. Configure
+`KAFKA_PROCESSING_MAX_ATTEMPTS` (default `5`), `KAFKA_RETRY_INITIAL_SECONDS`
+(default `1`), and `KAFKA_RETRY_MAX_SECONDS` (default `30`) to tune retries.
+
+DLQ records contain the original chunk payload, which may include sensitive
+banking data. Production Kafka deployments must apply appropriate access
+controls, encryption, and retention to both DLQ topics. The single-broker,
+replication-factor-one Compose configuration is for local development; it does
+not provide broker-failure durability.
 
 ### B. Verify Object Storage Buckets (MinIO)
 The stack uses `minio_mc` to automatically configure local directory structures on startup. Verify the dashboard console is reachable by browsing to:

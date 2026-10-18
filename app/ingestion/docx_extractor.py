@@ -1,24 +1,17 @@
-from pathlib import Path
 from docx import Document
 from docx.text.paragraph import Paragraph
-from app.workflow.ingestion_state import IngestionState
 from app.llm.llm_client import OllamaClient
 from app.app_logger import LoggerFactory
 
 
-class DocxExtractionAgent:
+class DocxExtractor:
 
     def __init__(self):
-        # Decoupled state from initialization to match your updated orchestration schema
         self.ollama_cloud = OllamaClient()
         self.logger = LoggerFactory.get_logger(__name__)
 
-    # MATCHES LANGGRAPH SIGNATURE: Accepts state and returns a state patch dictionary
-    def execute(self, state: IngestionState) -> dict:
-        # FIXED: Read values directly from Pydantic using dot-notation attributes
-        file_path = state.file_path
-        run_id = state.run_id
-        self.logger.info(f"[DOCX Extractor] Processing: {file_path} | Run ID: {run_id}")
+    def extract(self, file_path: str) -> dict:
+        self.logger.info(f"[DOCX Extractor] Processing: {file_path}")
 
         document = Document(file_path)
         page_text = []   
@@ -149,31 +142,7 @@ class DocxExtractionAgent:
             "elements": elements,
         }
 
-        # # Safe local DB saving mechanism
-        # try:
-        #     # Construct dictionary payload manually to mirror your other extractors
-        #     mongo_payload = {
-        #         "run_id": run_id,
-        #         "file_path": file_path,
-        #         "file_name": state.file_name,
-        #         "file_extension": state.file_extension,
-        #         "mime_type": state.mime_type,
-        #         "file_type": state.file_type,
-        #         "extracted_text": final_text,
-        #         "extraction_metadata": extraction_metadata,
-        #         "status": "extracted",
-        #         "error": None
-        #     }
-        #     mongo_id = StorageService.save_extracted_document(mongo_payload, run_id=run_id)
-        #     self.logger.info(f"[DOCX Extractor] Successfully persisted data to MongoDB. Doc Reference ID: {mongo_id}")
-        # except Exception as storage_err:
-        #     self.logger.error(f"[DOCX Extractor Storage Error] Failed to write out to local database: {storage_err}")
-
-        # CORRECT: Returns a clean patch dictionary for LangGraph to merge into state automatically
         return {
-            "run_id": run_id,
             "extracted_text": final_text,
             "extraction_metadata": extraction_metadata,
-            "status": "extracted",
-            "error": None
         }

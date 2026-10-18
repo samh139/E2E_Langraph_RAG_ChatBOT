@@ -92,7 +92,13 @@ async def _run_evaluation(
     if not retrieval_context:
         raise RuntimeError(
             "This query produced no retrieved chunk content, so RAG metrics cannot "
-            "be calculated. Check the retrieval result and score threshold first."
+            "be calculated. "
+            f"role={user_role!r}, allowed_roles={allowed_roles!r}, "
+            f"fallback_reason={result.get('fallback_reason')!r}, "
+            f"retrieval_score={result.get('retrieval_score')!r}, "
+            f"threshold={result.get('retrieval_threshold')!r}, "
+            f"retrieval_warning={result.get('retrieval_warning')!r}. "
+            "Check corpus contents, role assignment, and score threshold."
         )
 
     from deepeval.metrics import (
@@ -198,6 +204,8 @@ async def _run_evaluation(
         "retrieval_score": result.get("retrieval_score"),
         "retrieval_threshold": result.get("retrieval_threshold"),
         "retrieval_passed": result.get("retrieval_passed"),
+        "user_role": user_role,
+        "allowed_roles": allowed_roles,
         "metrics": metric_results,
     }
 
@@ -212,11 +220,13 @@ async def _evaluate_queries(
     session_id: str | None = None,
 ) -> list[dict[str, Any]]:
     from app.configs.llm_config import close_gemini_client
+    from app.memory_service.memory_team.ltm.ltm_service import close_ltm_clients
 
     results: list[dict[str, Any]] = []
     try:
         for case_number, case in enumerate(cases, start=1):
             query = case["input"]
+            case_role = case.get("role") or user_role
             query_id = str(uuid.uuid4())
             try:
                 result = await _run_evaluation(
@@ -226,7 +236,7 @@ async def _evaluate_queries(
                     query_id=query_id,
                     session_id=session_id or f"deepeval-{run_id}-{case_number}",
                     user_id=user_id,
-                    user_role=user_role,
+                    user_role=case_role,
                     judge_model=judge_model,
                 )
                 record = {
@@ -247,6 +257,7 @@ async def _evaluate_queries(
                     "query": query,
                     "golden_case_id": case.get("id"),
                     "expected_output": case.get("expected_output"),
+                    "user_role": case_role,
                     "source_documents": case.get("source_documents", []),
                     "source_url": case.get("source_url"),
                     "status": "failed",
@@ -268,7 +279,10 @@ async def _evaluate_queries(
     finally:
         # This CLI owns the app Gemini client's lifecycle; the long-running chat
         # service continues to reuse its client without closing it per request.
-        await close_gemini_client()
+        try:
+            await close_ltm_clients()
+        finally:
+            await close_gemini_client()
 
 
 def _load_queries(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[dict[str, Any]]:
@@ -300,6 +314,15 @@ def _load_queries(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
                     parser.error(
                         f"JSONL line {line_number} 'expected_output' must be a string."
                     )
+                case_role = case.get("role")
+                if case_role is not None and (
+                    not isinstance(case_role, str) or not case_role.strip()
+                ):
+                    parser.error(
+                        f"JSONL line {line_number} 'role' must be a non-empty string."
+                    )
+                if isinstance(case_role, str):
+                    case["role"] = case_role.strip()
                 source_documents = case.get("source_documents", [])
                 if not isinstance(source_documents, list) or not all(
                     isinstance(source, str) for source in source_documents

@@ -14,8 +14,10 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
 
 from app.ingestion.minio_client import MinioStorageClient
-from app.workflow.ingestion_workflow import IngestionWorkflow
-from app.workflow.ingestion_state import IngestionState
+from app.ingestion.pdf_extractor import PDFExtractor
+from app.ingestion.docx_extractor import DocxExtractor
+from app.utils.chunking_engine import ChunkingEngine
+from app.utils.file_utils import get_file_type
 from app.utils.kafka_delivery import produce_confirmed
 from app.workers.embed_worker import EmbedWorker
 from app.workers.indexer_worker import IndexerWorker
@@ -37,7 +39,8 @@ class IngestionService:
         self.chunks_topic = os.getenv("KAFKA_CHUNKS_TOPIC", "es.chunks")
         self._last_chunk_count = 0
         self._failed_files = []
-        self.ingestion_graph = IngestionWorkflow().compile()
+        self.pdf_extractor = PDFExtractor()
+        self.docx_extractor = DocxExtractor()
         
         # Load the document-to-role map used to tag each ingested chunk.
         self.roles_config_path = ROOT_DIR / "app" / "configs" / "rbac_roles.yaml"
@@ -71,7 +74,7 @@ class IngestionService:
 
     async def bulk_ingest(self, target_folder_path: str, dry_run: bool = False) -> int:
         print("\n=====================================================================")
-        print(f"🚀 [PHASE 1] Starting Bulk Ingest Scanner & LangGraph Extraction")
+        print("🚀 [PHASE 1] Starting content-based document scan, extraction, and chunking")
         print("=====================================================================")
         
         dir_path = Path(target_folder_path)
@@ -79,19 +82,26 @@ class IngestionService:
             print(f"[X] Directory error: Path not found at {target_folder_path}")
             return 0
 
-        supported_exts = {'.pdf', '.docx', '.pptx'}
-        files = [f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in supported_exts]
+        files = []
+        for candidate in dir_path.iterdir():
+            if not candidate.is_file():
+                continue
+            try:
+                detected_type = get_file_type(str(candidate))
+            except ValueError:
+                continue
+            files.append((candidate, detected_type))
         
         if not files:
             print("[*] No target documents found.")
             return 0
 
-        print(f"[*] Found {len(files)} items. Running LangGraph workflow pipeline...")
+        print(f"[*] Found {len(files)} PDF/DOCX documents. Running extraction and chunking...")
         processed_count = 0
         self._last_chunk_count = 0
         self._failed_files = []
 
-        for file_path in files:
+        for file_path, detected_type in files:
             run_id = str(uuid.uuid4())
             print(f"\n[*] Processing document: {file_path.name} | Run ID: {run_id[:8]}")
             
@@ -118,30 +128,29 @@ class IngestionService:
                         self.storage.bucket_name, minio_key, local_worker_path
                     )
 
-                state_input = IngestionState(
-                    run_id=run_id,
-                    file_path=local_worker_path,
+                extractor = self.pdf_extractor if detected_type == "pdf" else self.docx_extractor
+                extraction = await asyncio.to_thread(extractor.extract, local_worker_path)
+                elements = (extraction.get("extraction_metadata") or {}).get("elements", [])
+                if not elements:
+                    raise ValueError("Extractor produced no document elements")
+                raw_chunks = ChunkingEngine(max_chars=1000, overlap=250).chunk(
+                    elements=elements,
                     file_name=file_path.name,
-                    file_extension=file_path.suffix.lower(),
-                    mime_type=f"application/{file_path.suffix.lower()[1:]}",
-                    file_type=file_path.suffix.lower()[1:],
-                    status="pending",
-                    stage_timings_ms={},
-                    extracted_text="",
-                    # 🔒 Inject resolved access tag directly into state context tracker
-                    allowed_role=resolved_role
                 )
-
-                print(f"[*] Dispatching to LangGraph workflow architecture...")
-                final_state = await self.ingestion_graph.ainvoke(state_input)
-                
-                if not isinstance(final_state, dict):
-                    final_state = final_state.model_dump()
-                if final_state.get("error"):
-                    raise RuntimeError(final_state["error"])
-                chunks = final_state.get("chunks") or []
+                chunks = []
+                for idx, chunk_item in enumerate(raw_chunks):
+                    content = chunk_item.get("content", chunk_item.get("text_content", "")) if isinstance(chunk_item, dict) else getattr(chunk_item, "content", str(chunk_item))
+                    raw_chunk_id = chunk_item.get("id", chunk_item.get("chunk_id")) if isinstance(chunk_item, dict) else getattr(chunk_item, "id", None)
+                    chunks.append({
+                        "chunk_id": raw_chunk_id or f"{run_id}_c{idx}",
+                        "doc_id": run_id,
+                        "file_name": file_path.name,
+                        "file_type": detected_type,
+                        "allowed_role": resolved_role,
+                        "content": content.strip(),
+                    })
                 if not chunks:
-                    raise ValueError("Workflow produced no chunks")
+                    raise ValueError("Chunker produced no chunks")
                 self._last_chunk_count += len(chunks)
 
                 if dry_run:
@@ -149,7 +158,7 @@ class IngestionService:
                     processed_count += 1
                     continue
 
-                print(f"[✓] Graph extraction complete. Pushing to Kafka topic: {self.chunks_topic}")
+                print(f"[✓] Extraction complete. Pushing to Kafka topic: {self.chunks_topic}")
                 
                 for chunk_item in chunks:
                     content_str = chunk_item["content"]
