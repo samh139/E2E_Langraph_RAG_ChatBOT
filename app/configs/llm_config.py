@@ -6,22 +6,12 @@ from google import genai
 from google.genai import types
 from app.observability_metrics import dependency_operation, record_model_tokens
 
-# 1. Point to your Service Account JSON file path
-# Ensure you set the path to your e2e-langragh...6b38e63.json credential file
-# Dynamic path approach
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # points to app/
-CREDENTIALS_PATH = os.path.join(BASE_DIR, "configs", "e2e-langragh-chatbot-510511-cb0dd6b38e63.json")
-
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv(
-    "GOOGLE_APPLICATION_CREDENTIALS", 
-    CREDENTIALS_PATH
-)
-
-
-# Initialize the official Gemini Client (auto-picks up credentials from the environment variable)
+# Use Application Default Credentials. On Compute Engine this resolves to the
+# VM's attached service account, so no service-account key file is required.
 _client = genai.Client(
     vertexai=True,
-    project=os.getenv("GOOGLE_CLOUD_PROJECT", "e2e-langragh-chatbot-510511"),
+    project=os.getenv("GOOGLE_CLOUD_PROJECT"),
     location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
 )
 

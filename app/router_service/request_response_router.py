@@ -26,7 +26,13 @@ from app.security.access_control import (
 logger = LoggerFactory.get_logger(__name__)
 
 class RequestResponseRouter:
-    def __init__(self, kafka_bootstrap_servers='kafka:9092',max_concurrency=10):
+    def __init__(self, kafka_bootstrap_servers=None, max_concurrency=10):
+        kafka_bootstrap_servers = (
+            kafka_bootstrap_servers
+            or os.getenv("KAFKA_BOOTSTRAP")
+            or os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+            or "kafka:9092"
+        )
         self.consumer = Consumer({
             'bootstrap.servers': kafka_bootstrap_servers,
             'group.id': 'request_response_router_group',

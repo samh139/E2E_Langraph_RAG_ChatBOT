@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from confluent_kafka import Consumer
 import json
@@ -11,8 +12,10 @@ configure_telemetry("websocket")
 tracer = trace.get_tracer(__name__)
 
 consumer = Consumer({
-    'bootstrap.servers': 'kafka:9092',
-    'group.id': 'websocket-group',
+    'bootstrap.servers': os.getenv(
+        "KAFKA_BOOTSTRAP", os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+    ),
+    'group.id': os.getenv('KAFKA_WEBSOCKET_GROUP_ID', 'websocket-group'),
     'auto.offset.reset': 'earliest'})
 
 consumer.subscribe(['chat-responses'])

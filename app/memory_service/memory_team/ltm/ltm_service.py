@@ -10,9 +10,15 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[3] / "configs" / ".env")
 
-es_host="http://elasticsearch:9200"
+es_host = os.getenv("ES_HOST", "http://elasticsearch:9200")
 es_ltm_index="conversations"
-es = AsyncElasticsearch(es_host)
+es_options = {}
+if os.getenv("ES_PASSWORD"):
+    es_options["basic_auth"] = (
+        os.getenv("ES_USERNAME", "elastic"),
+        os.getenv("ES_PASSWORD"),
+    )
+es = AsyncElasticsearch(es_host, **es_options)
 
 EMBEDDING_MODEL_NAME = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 EMBEDDING_DIMS = 768

@@ -74,6 +74,21 @@ async def _run_evaluation(
     result = await RetrievalWorkflow().ainvoke(state.model_dump())
 
     retrieved_chunks = result.get("retrieved_chunks") or []
+    from app.evaluation.ranking_metrics import score_document_ranking
+
+    ranking_metrics = (
+        score_document_ranking(retrieved_chunks, source_documents)
+        if source_documents
+        else [
+            {
+                "name": metric_name,
+                "status": "skipped",
+                "score": None,
+                "reason": "This metric requires source_documents relevance labels.",
+            }
+            for metric_name in ("Precision@5", "Recall@5", "MRR@5")
+        ]
+    )
     retrieved_sources = [
         {
             "chunk_id": chunk.get("chunk_id"),
@@ -165,7 +180,7 @@ async def _run_evaluation(
             ]
         )
 
-    metric_results = []
+    metric_results = list(ranking_metrics)
     for metric_name, metric in metrics:
         metric.measure(test_case)
         metric_results.append(

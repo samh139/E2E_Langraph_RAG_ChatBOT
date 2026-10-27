@@ -1,10 +1,11 @@
 import json
+import os
 from typing import Dict, List
 from datetime import datetime, timedelta
 # Updated: Import from redis.asyncio instead of standard redis
 import redis.asyncio as aioredis
 
-REDIS_URL =  "redis://redis:6379/0"
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
 # Updated: Use the async client configuration
 redis_client = aioredis.Redis.from_url(REDIS_URL, decode_responses=True)

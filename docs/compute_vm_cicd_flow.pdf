@@ -1,0 +1,229 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 8 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Length 8765 >>
+stream
+0.080 0.200 0.360 rg BT /F2 17 Tf 32.0 575.0 Td (CI/CD deployment to a Google Compute Engine VM) Tj ET
+0.340 0.400 0.480 rg BT /F1 8.8 Tf 32.0 559.2 Td (One-time GCP and GitHub setup, followed by each automated deployment.) Tj ET
+0.8 w 0.800 0.830 0.870 RG 32.0 550.0 m 760.0 550.0 l S
+0.420 0.460 0.520 rg BT /F1 8 Tf 724.0 14.0 Td (1 / 2) Tj ET
+0.120 0.340 0.570 rg BT /F2 10 Tf 32.0 530.0 Td (ONE-TIME SETUP) Tj ET
+0.120 0.480 0.400 rg BT /F2 10 Tf 406.0 530.0 Td (EACH DEPLOYMENT) Tj ET
+0.8 w 0.720 0.770 0.840 RG 0.960 0.970 0.990 rg 32.0 479.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 40.0 508.5 Td (01) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 501.5 Td (Create GCP project and enable billing; enable Compute Engine, Artifact) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 491.0 Td (Registry, IAP, IAM, and Vertex AI APIs.) Tj ET
+1 w 0.380 0.470 0.580 RG 209.0 479.0 m 209.0 476.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 476.0 m 206.0 481.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 476.0 m 212.0 481.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.960 0.970 0.990 rg 32.0 430.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 40.0 459.5 Td (02) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 447.2 Td (Create an Artifact Registry Docker repository.) Tj ET
+1 w 0.380 0.470 0.580 RG 209.0 430.0 m 209.0 427.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 427.0 m 206.0 432.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 427.0 m 212.0 432.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.960 0.970 0.990 rg 32.0 381.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 40.0 410.5 Td (03) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 403.5 Td (Create GitHub deploy service account and Workload Identity Federation) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 393.0 Td (provider restricted to this repository.) Tj ET
+1 w 0.380 0.470 0.580 RG 209.0 381.0 m 209.0 378.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 378.0 m 206.0 383.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 378.0 m 212.0 383.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.960 0.970 0.990 rg 32.0 332.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 40.0 361.5 Td (04) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 354.5 Td (Grant deploy identity image-push and VM access: Artifact Registry Writer,) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 344.0 Td (OS Login, IAP tunnel, and Compute Viewer.) Tj ET
+1 w 0.380 0.470 0.580 RG 209.0 332.0 m 209.0 329.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 329.0 m 206.0 334.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 329.0 m 212.0 334.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.960 0.970 0.990 rg 32.0 283.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 40.0 312.5 Td (05) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 305.5 Td (Create VM runtime service account; grant Vertex AI access and Artifact) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 295.0 Td (Registry Reader.) Tj ET
+1 w 0.380 0.470 0.580 RG 209.0 283.0 m 209.0 280.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 280.0 m 206.0 285.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 280.0 m 212.0 285.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.960 0.970 0.990 rg 32.0 234.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 40.0 263.5 Td (06) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 251.2 Td (Create VM; attach runtime service account and cloud-platform access scope.) Tj ET
+1 w 0.380 0.470 0.580 RG 209.0 234.0 m 209.0 231.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 231.0 m 206.0 236.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 231.0 m 212.0 236.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.960 0.970 0.990 rg 32.0 185.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 40.0 214.5 Td (07) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 207.5 Td (Install Docker and gcloud on VM; configure IAP and WebSocket firewall) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 197.0 Td (access.) Tj ET
+1 w 0.380 0.470 0.580 RG 209.0 185.0 m 209.0 182.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 182.0 m 206.0 187.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 182.0 m 212.0 187.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.960 0.970 0.990 rg 32.0 136.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 40.0 165.5 Td (08) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 158.5 Td (Create /etc/rag-chatbot/app.env on VM with app configuration and dependency) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 148.0 Td (endpoints.) Tj ET
+1 w 0.380 0.470 0.580 RG 209.0 136.0 m 209.0 133.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 133.0 m 206.0 138.0 l S
+1 w 0.380 0.470 0.580 RG 209.0 133.0 m 212.0 138.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.960 0.970 0.990 rg 32.0 87.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 40.0 116.5 Td (09) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 63.0 104.2 Td (Add required GCP and VM variables to GitHub production environment.) Tj ET
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 479.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 508.5 Td (01) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 496.2 Td (Push or merge to main \(or start workflow_dispatch manually\).) Tj ET
+1 w 0.380 0.470 0.580 RG 583.0 479.0 m 583.0 476.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 476.0 m 580.0 481.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 476.0 m 586.0 481.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 430.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 459.5 Td (02) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 447.2 Td (GitHub Actions checks out the repository.) Tj ET
+1 w 0.380 0.470 0.580 RG 583.0 430.0 m 583.0 427.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 427.0 m 580.0 432.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 427.0 m 586.0 432.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 381.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 410.5 Td (03) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 398.2 Td (GitHub OIDC authenticates to GCP through Workload Identity Federation.) Tj ET
+1 w 0.380 0.470 0.580 RG 583.0 381.0 m 583.0 378.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 378.0 m 580.0 383.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 378.0 m 586.0 383.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 332.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 361.5 Td (04) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 349.2 Td (Build Docker image; .dockerignore excludes local secrets and data.) Tj ET
+1 w 0.380 0.470 0.580 RG 583.0 332.0 m 583.0 329.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 329.0 m 580.0 334.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 329.0 m 586.0 334.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 283.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 312.5 Td (05) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 300.2 Td (Tag image with commit SHA and push to Artifact Registry.) Tj ET
+1 w 0.380 0.470 0.580 RG 583.0 283.0 m 583.0 280.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 280.0 m 580.0 285.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 280.0 m 586.0 285.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 234.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 263.5 Td (06) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 251.2 Td (Copy deploy_vm.sh to the VM through IAP.) Tj ET
+1 w 0.380 0.470 0.580 RG 583.0 234.0 m 583.0 231.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 231.0 m 580.0 236.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 231.0 m 586.0 236.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 185.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 214.5 Td (07) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 202.2 Td (Run deployment script on the VM through IAP.) Tj ET
+1 w 0.380 0.470 0.580 RG 583.0 185.0 m 583.0 182.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 182.0 m 580.0 187.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 182.0 m 586.0 187.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 136.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 165.5 Td (08) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 153.2 Td (VM runtime identity pulls the new image from Artifact Registry.) Tj ET
+1 w 0.380 0.470 0.580 RG 583.0 136.0 m 583.0 133.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 133.0 m 580.0 138.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 133.0 m 586.0 138.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 87.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 116.5 Td (09) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 104.2 Td (Restart WebSocket gateway and retrieval router containers.) Tj ET
+1 w 0.380 0.470 0.580 RG 583.0 87.0 m 583.0 84.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 84.0 m 580.0 89.0 l S
+1 w 0.380 0.470 0.580 RG 583.0 84.0 m 586.0 89.0 l S
+0.8 w 0.720 0.770 0.840 RG 0.950 0.980 0.960 rg 406.0 38.0 354.0 42.0 re B
+0.160 0.350 0.590 rg BT /F2 7.5 Tf 414.0 67.5 Td (10) Tj ET
+0.130 0.180 0.250 rg BT /F1 8 Tf 437.0 55.2 Td (App calls Vertex AI using ADC from VM identity; no JSON key file.) Tj ET
+0.310 0.360 0.430 rg BT /F2 8.3 Tf 32.0 29.7 Td (The workflow deploys the gateway and retrieval router. It does not run ingestion on every release.) Tj ET
+
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 5351 >>
+stream
+0.080 0.200 0.360 rg BT /F2 17 Tf 32.0 575.0 Td (Setup checklist and deployment details) Tj ET
+0.340 0.400 0.480 rg BT /F1 8.8 Tf 32.0 559.2 Td (Complete these items before the first push to main.) Tj ET
+0.8 w 0.800 0.830 0.870 RG 32.0 550.0 m 760.0 550.0 l S
+0.420 0.460 0.520 rg BT /F1 8 Tf 724.0 14.0 Td (2 / 2) Tj ET
+0.120 0.340 0.570 rg BT /F2 10 Tf 36.0 526.0 Td (GCP AND VM) Tj ET
+0.100 0.280 0.470 rg BT /F2 10.3 Tf 36.0 505.7 Td (1. Enable and create) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 38.0 489.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 489.5 Td (Enable Compute Engine, Artifact Registry, IAP, IAM, and Vertex AI) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 478.5 Td (APIs in the GCP project.) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 38.0 462.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 462.5 Td (Create an Artifact Registry Docker repository.) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 38.0 446.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 446.5 Td (Create the VM and attach a user-managed runtime service account) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 435.5 Td (with the cloud-platform scope.) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 38.0 419.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 419.5 Td (Install Docker and gcloud; permit IAP SSH and WebSocket traffic) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 408.5 Td (through the firewall.) Tj ET
+0.100 0.280 0.470 rg BT /F2 10.3 Tf 36.0 383.7 Td (2. Assign separate identities) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 38.0 367.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 367.5 Td (VM runtime account: Vertex AI access and Artifact Registry Reader.) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 38.0 351.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 351.5 Td (GitHub deploy account: Artifact Registry Writer, Compute Viewer,) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 340.5 Td (OS Login, and IAP tunnel access. Grant serviceAccountUser only) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 329.5 Td (where needed to log in as the VM identity.) Tj ET
+0.100 0.280 0.470 rg BT /F2 10.3 Tf 36.0 304.7 Td (3. Configure VM runtime settings) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 38.0 288.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 288.5 Td (Create /etc/rag-chatbot/app.env with project and region, Kafka,) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 277.5 Td (Elasticsearch, Redis, Ollama, JWT, and application settings.) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 38.0 261.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 261.5 Td (Keep the file restricted to administrators. Do not place a) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 51.0 250.5 Td (service-account JSON key in it.) Tj ET
+0.120 0.480 0.400 rg BT /F2 10 Tf 408.0 526.0 Td (GITHUB AND RELEASE) Tj ET
+0.100 0.280 0.470 rg BT /F2 10.3 Tf 408.0 505.7 Td (4. Configure GitHub) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 410.0 489.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 489.5 Td (Create a production environment and add these variables:) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 410.0 473.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 473.5 Td (GCP_PROJECT_ID; GCP_WORKLOAD_IDENTITY_PROVIDER;) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 462.5 Td (GCP_DEPLOY_SERVICE_ACCOUNT;) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 410.0 446.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 446.5 Td (GAR_LOCATION; GAR_REPOSITORY; GCE_VM_NAME; GCE_VM_ZONE.) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 410.0 430.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 430.5 Td (Restrict Workload Identity Federation to this repository and) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 419.5 Td (intended branch/environment.) Tj ET
+0.100 0.280 0.470 rg BT /F2 10.3 Tf 408.0 394.7 Td (5. Release flow) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 410.0 378.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 378.5 Td (Push or merge to main. GitHub builds an image tagged with the) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 367.5 Td (commit SHA and pushes it to Artifact Registry.) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 410.0 351.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 351.5 Td (GitHub connects to the VM through IAP, copies the deploy script,) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 340.5 Td (and invokes it.) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 410.0 324.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 324.5 Td (The VM pulls the image with its attached identity and restarts the) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 313.5 Td (WebSocket gateway and retrieval router.) Tj ET
+0.120 0.380 0.620 rg BT /F2 9 Tf 410.0 297.0 Td (-) Tj ET
+0.130 0.180 0.250 rg BT /F1 8.5 Tf 423.0 297.5 Td (Use workflow_dispatch to run the deployment manually.) Tj ET
+0.8 w 0.840 0.790 0.650 RG 0.970 0.970 0.940 rg 408.0 221.0 348.0 57.0 re B
+0.390 0.310 0.160 rg BT /F2 8.5 Tf 418.0 261.5 Td (SCOPE AND SECURITY) Tj ET
+0.280 0.270 0.240 rg BT /F1 7.6 Tf 418.0 248.4 Td (Ingestion is not run automatically on release. Rotate any credentials) Tj ET
+0.280 0.270 0.240 rg BT /F1 7.6 Tf 418.0 237.4 Td (previously exposed in the tracked .env file before production.) Tj ET
+0.310 0.360 0.430 rg BT /F2 8.3 Tf 36.0 29.7 Td (Single-VM deployment restarts containers during release and is not highly available.) Tj ET
+
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000197 00000 n 
+0000000272 00000 n 
+0000009089 00000 n 
+0000009225 00000 n 
+0000014628 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+14764
+%%EOF
