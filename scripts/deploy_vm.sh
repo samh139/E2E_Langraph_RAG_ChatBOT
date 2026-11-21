@@ -4,6 +4,7 @@ set -euo pipefail
 image_uri="${1:?Usage: deploy_vm.sh IMAGE_URI GAR_LOCATION}"
 gar_location="${2:?Usage: deploy_vm.sh IMAGE_URI GAR_LOCATION}"
 env_file="${RAG_APP_ENV_FILE:-/etc/rag-chatbot/app.env}"
+release_id="${image_uri##*:}"
 
 if [[ ! -r "$env_file" ]]; then
   echo "Runtime environment file is missing or unreadable: $env_file" >&2
@@ -35,6 +36,8 @@ docker run -d \
   --restart unless-stopped \
   --network host \
   --env-file "$env_file" \
+  --env "APP_RELEASE=$release_id" \
+  --env "APP_GIT_SHA=$release_id" \
   "$image_uri" \
   python -u -m app.websocket_service.main
 
@@ -43,6 +46,8 @@ docker run -d \
   --restart unless-stopped \
   --network host \
   --env-file "$env_file" \
+  --env "APP_RELEASE=$release_id" \
+  --env "APP_GIT_SHA=$release_id" \
   "$image_uri" \
   python -u -c "import asyncio; from app.router_service.request_response_router import RequestResponseRouter; asyncio.run(RequestResponseRouter().start())"
 

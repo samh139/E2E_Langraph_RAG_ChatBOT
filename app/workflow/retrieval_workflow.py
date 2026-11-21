@@ -129,6 +129,9 @@ class RetrievalWorkflow:
             )
         return result
 
-    async def ainvoke(self, graph_input: dict[str, Any]) -> dict[str, Any]:
+    async def ainvoke(
+        self, graph_input: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Run the compiled graph asynchronously for request-router callers."""
-        return await self.compiled_graph.ainvoke(graph_input)
+        return await self.compiled_graph.ainvoke(graph_input, config=config)
+

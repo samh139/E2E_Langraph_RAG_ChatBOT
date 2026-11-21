@@ -17,6 +17,16 @@ _client = genai.Client(
 
 # Set your preferred Gemini model (e.g., gemini-2.5-flash for speed/classification)
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+print(
+    "[*] Model release configuration: "
+    f"release={os.getenv('APP_RELEASE', 'local')}, "
+    f"revision={os.getenv('APP_GIT_SHA', 'unknown')}, "
+    f"generation=vertex-ai/{GEMINI_MODEL}, "
+    f"embedding={os.getenv('EMBEDDING_PROVIDER', 'ollama')}/"
+    f"{os.getenv('VERTEX_EMBEDDING_MODEL', os.getenv('OLLAMA_EMBED_MODEL', 'nomic-embed-text'))}"
+    f"@{os.getenv('VERTEX_EMBEDDING_VERSION', 'local')}"
+    f" endpoint={os.getenv('VERTEX_EMBEDDING_ENDPOINT_ID', 'local')}"
+)
 
 
 def _record_gemini_usage(operation: str, response: Any) -> None:

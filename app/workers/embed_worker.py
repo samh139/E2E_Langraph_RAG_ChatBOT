@@ -3,10 +3,10 @@ import os
 import time
 from pathlib import Path
 
-import ollama
 from confluent_kafka import Consumer, KafkaError, Producer, TopicPartition
 from dotenv import load_dotenv
 
+from app.embeddings import embed_texts, embedding_dimensions
 from app.utils.kafka_delivery import (
     produce_confirmed,
     publish_dead_letter,
@@ -36,17 +36,16 @@ class EmbedWorker:
             "KAFKA_CHUNKS_DLQ_TOPIC", f"{self.input_topic}.dlq"
         )
 
-        self.model_name = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-        self.embedding_dimensions = 768
-        self.batch_size = int(os.getenv("OLLAMA_EMBED_BATCH_SIZE", "32"))
+        self.embedding_dimensions = embedding_dimensions()
+        self.batch_size = int(os.getenv("EMBED_BATCH_SIZE", "32"))
         if self.batch_size < 1:
-            raise ValueError("OLLAMA_EMBED_BATCH_SIZE must be at least 1")
-
-        ollama_host = os.getenv(
-            "OLLAMA_URL", os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
+            raise ValueError("EMBED_BATCH_SIZE must be at least 1")
+        self.provider = os.getenv("EMBEDDING_PROVIDER", "ollama").strip().lower()
+        self.model_name = (
+            os.getenv("VERTEX_EMBEDDING_MODEL", "nomic-embed-text")
+            if self.provider == "vertex"
+            else os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
         )
-        ollama_timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180"))
-        self.ollama_client = ollama.Client(host=ollama_host, timeout=ollama_timeout)
 
         self.consumer = Consumer(
             {
@@ -66,30 +65,15 @@ class EmbedWorker:
         )
 
         print(
-            f"[*] Ollama embedding worker configured: model={self.model_name}, "
-            f"host={ollama_host}, dimensions={self.embedding_dimensions}"
+            f"[*] Embedding worker configured: provider={self.provider}, "
+            f"model={self.model_name}, dimensions={self.embedding_dimensions}"
         )
 
     def get_embeddings_batch(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
 
-        response = self.ollama_client.embed(model=self.model_name, input=texts)
-        embeddings = [list(vector) for vector in response.embeddings]
-
-        if len(embeddings) != len(texts):
-            raise RuntimeError(
-                f"Ollama returned {len(embeddings)} embeddings for {len(texts)} inputs"
-            )
-
-        for index, vector in enumerate(embeddings):
-            if len(vector) != self.embedding_dimensions:
-                raise RuntimeError(
-                    f"Ollama model {self.model_name!r} returned vector {index} with "
-                    f"{len(vector)} dimensions; expected {self.embedding_dimensions}"
-                )
-
-        return embeddings
+        return embed_texts(texts, task="search_document")
 
     @staticmethod
     def _parse_message(message) -> dict | None:
@@ -148,11 +132,11 @@ class EmbedWorker:
             except Exception as exc:
                 if attempt == attempts:
                     raise RuntimeError(
-                        f"Ollama embedding failed after {attempts} attempts; "
+                        f"{self.provider} embedding failed after {attempts} attempts; "
                         "source offsets remain uncommitted for replay"
                     ) from exc
                 print(
-                    f"[!] Ollama embedding attempt {attempt}/{attempts} failed: "
+                    f"[!] {self.provider} embedding attempt {attempt}/{attempts} failed: "
                     f"{exc}. Retrying in {delay:.1f}s."
                 )
                 time.sleep(delay)

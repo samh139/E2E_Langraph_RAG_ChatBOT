@@ -29,7 +29,13 @@ def _cache_key(query: str, memory_scope_id: str) -> str | None:
         "permission_scope": memory_scope_id,
         "index": chunk_index_alias(),
         "gemini_model": os.getenv("GEMINI_MODEL", GEMINI_MODEL),
-        "embedding_model": os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
+        "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "ollama"),
+        "embedding_model": (
+            os.getenv("VERTEX_EMBEDDING_MODEL", "nomic-embed-text")
+            if os.getenv("EMBEDDING_PROVIDER", "ollama").strip().lower() == "vertex"
+            else os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+        ),
+        "embedding_version": os.getenv("VERTEX_EMBEDDING_VERSION", ""),
         "reranker_model": os.getenv(
             "CROSS_ENCODER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"
         ),

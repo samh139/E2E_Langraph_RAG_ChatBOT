@@ -122,11 +122,13 @@ class IngestionService:
                     minio_key = f"raw_vault/{run_id}_{file_path.name}"
                     self.storage.upload_document(str(file_path), minio_key)
 
-                    local_worker_path = f"/tmp/rag_ingest/{run_id}_{file_path.name}"
-                    os.makedirs(os.path.dirname(local_worker_path), exist_ok=True)
-                    self.storage.client.fget_object(
-                        self.storage.bucket_name, minio_key, local_worker_path
-                    )
+                    # local_worker_path = f"/tmp/rag_ingest/{run_id}_{file_path.name}"
+                    # os.makedirs(os.path.dirname(local_worker_path), exist_ok=True)
+                    # self.storage.client.fget_object(
+                    #     self.storage.bucket_name, minio_key, local_worker_path
+                    # )
+                    local_worker_path = self.storage.download_to_local_temp(minio_key)
+
 
                 extractor = self.pdf_extractor if detected_type == "pdf" else self.docx_extractor
                 extraction = await asyncio.to_thread(extractor.extract, local_worker_path)

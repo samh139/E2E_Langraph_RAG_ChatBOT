@@ -1,0 +1,15 @@
+.git
+.github
+.deepeval
+.env
+.env.example
+build/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+rag_chat_env/
+.venv/
+venv/
+logs/
+app/configs/.env
+app/configs/*.json

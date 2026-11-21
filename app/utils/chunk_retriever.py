@@ -13,6 +13,7 @@ from elasticsearch import Elasticsearch
 from app.utils.retrieval_config import chunk_index_alias, create_es_client
 from app.utils.text_bm25 import BM25Retriever
 from app.observability_metrics import dependency_operation, record_chunks
+from app.embeddings import embedding_dimensions
 
 
 logger = logging.getLogger(__name__)
@@ -149,9 +150,10 @@ class ChunkRetriever:
         query = query.strip()
         if not query or not allowed_roles:
             return []
-        if len(query_vector) != 768:
+        if len(query_vector) != embedding_dimensions():
             raise ValueError(
-                f"Expected a 768-dimensional Ollama query vector; got {len(query_vector)}"
+                f"Expected a {embedding_dimensions()}-dimensional query vector; "
+                f"got {len(query_vector)}"
             )
 
         bm25_hits = self.bm25.search(

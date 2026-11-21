@@ -194,3 +194,8 @@ class RequestResponseRouter:
         }
 
     
+
+
+if __name__ == "__main__":
+    router = RequestResponseRouter()
+    asyncio.run(router.start())

@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from elasticsearch import Elasticsearch
+from app.embeddings import embedding_dimensions
 
-
-EMBEDDING_DIMS = 768
+EMBEDDING_DIMS = embedding_dimensions()
 
 
 def chunk_index_mappings() -> dict:
@@ -43,6 +43,9 @@ class AliasManager:
             os.getenv("ES_INDEX_ALIAS", "").strip()
             or f"{self.base_index}_live"
         )
+        raw_alias = os.getenv("ES_INDEX_ALIAS", "").strip() or f"{self.base_index}_live"
+        self.alias = re.sub(r"[^a-z0-9_-]", "_", raw_alias.lower())
+
 
         if es is not None:
             self.es = es

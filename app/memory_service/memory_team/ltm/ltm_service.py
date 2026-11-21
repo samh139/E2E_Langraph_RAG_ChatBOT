@@ -4,9 +4,9 @@ import os
 from pathlib import Path
 
 from elasticsearch import AsyncElasticsearch 
-import ollama
 from typing import List, Dict
 from dotenv import load_dotenv
+from app.embeddings import embed_texts_async, embedding_dimensions
 
 load_dotenv(Path(__file__).resolve().parents[3] / "configs" / ".env")
 
@@ -20,45 +20,23 @@ if os.getenv("ES_PASSWORD"):
     )
 es = AsyncElasticsearch(es_host, **es_options)
 
-EMBEDDING_MODEL_NAME = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-EMBEDDING_DIMS = 768
-OLLAMA_URL = os.getenv(
-    "OLLAMA_URL", os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
-)
-EMBEDDING_CLIENT = ollama.AsyncClient(
-    host=OLLAMA_URL,
-    timeout=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180")),
-)
+EMBEDDING_DIMS = embedding_dimensions()
 print(
-    f"[*] LTM embedding client configured: {EMBEDDING_MODEL_NAME} "
-    f"({EMBEDDING_DIMS} dimensions) at {OLLAMA_URL}"
+    f"[*] LTM embedding client configured: "
+    f"{os.getenv('EMBEDDING_PROVIDER', 'ollama')} ({EMBEDDING_DIMS} dimensions)"
 )
 
 
 async def close_ltm_clients() -> None:
     """Close shared LTM clients when running a one-shot command such as evaluation."""
     await es.close()
-    await EMBEDDING_CLIENT.close()
 
 
-async def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed texts with the same Ollama model used for indexed documents."""
-    if not texts:
-        return []
-
-    response = await EMBEDDING_CLIENT.embed(model=EMBEDDING_MODEL_NAME, input=texts)
-    embeddings = [list(vector) for vector in response.embeddings]
-    if len(embeddings) != len(texts):
-        raise RuntimeError(
-            f"Ollama returned {len(embeddings)} vectors for {len(texts)} input texts"
-        )
-    for index, vector in enumerate(embeddings):
-        if len(vector) != EMBEDDING_DIMS:
-            raise RuntimeError(
-                f"Ollama model {EMBEDDING_MODEL_NAME!r} returned vector {index} "
-                f"with {len(vector)} dimensions; expected {EMBEDDING_DIMS}"
-            )
-    return embeddings
+async def embed_texts(
+    texts: list[str], task: str = "search_document"
+) -> list[list[float]]:
+    """Embed texts using the shared provider and task-specific Nomic prefix."""
+    return await embed_texts_async(texts, task=task)
 
 async def create_index_if_not_exists() -> None:
     """Create the LTM conversation index with fields used by lexical and KNN retrieval."""
@@ -203,7 +181,7 @@ async def fetch_from_ltm(
 async def fetch_knn_from_ltm(
     query: str, user_id: str, session_id: str, scope_id: str, top_k: int = 10
 ) -> list[dict]:
-    query_vec = (await embed_texts([query]))[0]
+    query_vec = (await embed_texts([query], task="search_query"))[0]
     
     request_body = {
         "size": top_k,

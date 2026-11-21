@@ -1,0 +1,4 @@
+Flask>=3.0,<4
+gunicorn>=22,<24
+sentence-transformers>=3.0,<6
+google-cloud-storage>=2.18,<4

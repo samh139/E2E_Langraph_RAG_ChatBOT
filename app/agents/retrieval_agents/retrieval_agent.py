@@ -4,11 +4,9 @@ import asyncio
 import logging
 import os
 import time
-from functools import lru_cache
 from typing import Any
 
-import ollama
-
+from app.embeddings import embed_texts, embedding_dimensions
 from app.utils.chunk_retriever import ChunkRetriever
 from app.observability_metrics import (
     dependency_operation,
@@ -21,13 +19,8 @@ from app.workflow.retrieval_state import RetrieverState
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=4)
-def _get_ollama_client(host: str, timeout: float) -> ollama.Client:
-    return ollama.Client(host=host, timeout=timeout)
-
-
 class RetrievalAgent:
-    """Embed a query with Ollama and retrieve/rerank raw Elasticsearch chunks."""
+    """Embed a query with the configured provider and retrieve raw chunks."""
 
     def __init__(self, payload: RetrieverState, top_k: int | None = None):
         self.payload = payload
@@ -60,32 +53,27 @@ class RetrievalAgent:
                 "error": "No authorized document roles were provided.",
             }
 
-        model_name = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-        ollama_host = os.getenv(
-            "OLLAMA_URL", os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
-        )
-        ollama_timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180"))
         retriever: ChunkRetriever | None = None
         started = time.perf_counter()
 
         try:
-            ollama_client = _get_ollama_client(ollama_host, ollama_timeout)
-            with dependency_operation("ollama", "query_embedding"):
+            provider = os.getenv("EMBEDDING_PROVIDER", "ollama").strip().lower()
+            with dependency_operation(provider, "query_embedding"):
                 response = await asyncio.to_thread(
-                    ollama_client.embed,
-                    model=model_name,
-                    input=query,
+                    embed_texts,
+                    [query],
+                    "search_query",
                 )
-            vectors = [list(vector) for vector in response.embeddings]
+            vectors = response
             if len(vectors) != 1:
                 raise RuntimeError(
-                    f"Ollama returned {len(vectors)} vectors for one query"
+                    f"Embedding provider returned {len(vectors)} vectors for one query"
                 )
             query_vector = vectors[0]
-            if len(query_vector) != 768:
+            if len(query_vector) != embedding_dimensions():
                 raise RuntimeError(
-                    f"Ollama model {model_name!r} returned {len(query_vector)} dimensions; "
-                    "the chunk index is configured for 768"
+                    f"Embedding provider returned {len(query_vector)} dimensions; "
+                    f"the chunk index is configured for {embedding_dimensions()}"
                 )
 
             top_k = self.top_k or int(os.getenv("RETRIEVAL_TOP_K", "5"))

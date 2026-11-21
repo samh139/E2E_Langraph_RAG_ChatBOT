@@ -18,6 +18,7 @@ sentence-transformers
 pymongo
 uvicorn
 google-genai
+google-auth
 presidio-analyzer
 presidio-anonymizer
 langgraph-checkpoint-redis
@@ -26,3 +27,4 @@ deepeval
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-exporter-otlp-proto-grpc
+google-cloud-storage
