@@ -88,6 +88,12 @@ class RetrievalAgent:
 
             score = float(candidates[0]["relevance_score"]) if candidates else 0.0
             passed = bool(candidates) and score >= threshold
+            print(
+                f"KB_RETRIEVAL query_id={state.query_id} "
+                f"candidates={len(candidates)} score={score:.4f} "
+                f"threshold={threshold:.4f} passed={passed}",
+                flush=True,
+            )
             outcome = "success" if passed else "low_relevance" if candidates else "no_results"
             record_retrieval(outcome, time.perf_counter() - started, score)
             if not passed:

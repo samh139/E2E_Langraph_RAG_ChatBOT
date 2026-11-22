@@ -24,6 +24,9 @@ RUN pip --timeout 300 --retries 10 install --no-cache-dir -r requirements.txt
 # 7. Download the spaCy English model for Presidio
 RUN python -m spacy download en_core_web_sm
 
+RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
+
+
 # 8. Copy the rest of your application code
 COPY . .
 
